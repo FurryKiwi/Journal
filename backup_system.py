@@ -102,6 +102,8 @@ class BackUpSystem:
 
     def auto_backup(self, user: str, time_frame: int) -> None:
         """Starts an 'after' call to automatically back up the current user."""
+        # Have to generate an event so the program knows to save the current input from the user.
+        self.root.event_generate("<<AutoBackupRun>>")
         # Every time-run, grabs the current data from the database
         data = self.data_handler.get_data()
         # If not data, cancels auto backup
@@ -117,6 +119,7 @@ class BackUpSystem:
 
     def _check_user_for_backup(self, user: str) -> bool:
         """Checks if a backup exists for the current user."""
+        self.backup_data = utils.read_json(self._save_path, False)
         for data in self.backup_data['users']:
             for users in data.keys():
                 if user == users:

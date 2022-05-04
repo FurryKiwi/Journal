@@ -4,9 +4,11 @@ TITLE = "Journal"
 
 BACKGROUND_IMG = "Images/gradient_background.png"
 
+# For creating the notebook close button elements
 CLOSE_BTN = "Images/close-button.png"
 CLOSE_BTN_ACTIVE = "Images/close.png"
 CLOSE_BTN_PRESSED = "Images/close_active.png"
+# ___
 
 TCL_PATH = "tcl_files/azure.tcl"
 

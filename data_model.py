@@ -33,7 +33,6 @@ class DataHandler:
     # Json data functions
     def clear_data(self) -> None:
         """Clears the current user's data."""
-        del self.data
         self.data = {}
 
     def _setup_database(self) -> None:
@@ -106,7 +105,7 @@ class DataHandler:
             milliseconds = 120000
         self.backup_sys.start_auto_backup(self.current_user, milliseconds)
 
-    def get_data(self):
+    def get_data(self) -> dict:
         return self.data
 
     # Login Functions
@@ -210,14 +209,17 @@ class DataHandler:
         # Check if adding a category to an existing category
         if entry in self.data.keys():
             return False
-        if category in self.data.keys():
-            # If renaming a category
-            self.data[entry] = self.data.pop(category)
-            return True
-        else:
-            # Adding a new category
-            self.data.update({entry: {}})
-            return True
+        try:
+            if category in self.data.keys():
+                # If renaming a category
+                self.data[entry] = self.data.pop(category)
+                return True
+            else:
+                # Adding a new category
+                self.data.update({entry: {}})
+                return True
+        except KeyError:
+            return False
 
     def add_definition(self, entry: str, category: str, definition: str) -> bool:
         """Adds/Renames a definition in the data for the current user."""

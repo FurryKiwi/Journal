@@ -64,6 +64,7 @@ class Journal:
         self.root.bind("<<DataClear>>", lambda event=None: self.alert_system.data_cleared())
         self.root.bind("<<TabLimit>>", lambda event=None: self.alert_system.tab_limit())
         self.root.bind("<<SavedText>>", lambda event=None: self.alert_system.saved_text())
+        self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
 
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?"):

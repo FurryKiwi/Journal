@@ -53,6 +53,7 @@ class TabArea(tk.Frame):
         """Save the entered text to the database."""
         self.data_handler.add_text(category, definition, text)
         self.data_handler.update_json()
+        self.event_generate("<<SavedText>>")
 
 
 class Layout(tk.Frame):

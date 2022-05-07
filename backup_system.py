@@ -13,9 +13,9 @@ from settings import *
 
 
 class BackUpView:
+
     def __init__(self, root, layout, data_handler):
         self.root = root
-        # self.root.attributes('-alpha', 0.7)
 
         self.main_layout = layout
         self.data_handler = data_handler
@@ -77,17 +77,17 @@ class BackUpSystem:
 
         self.backup_data = None
         self.active = False
-        self.after_ids = []
+        self.after_id = ""
         self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
 
     def cancel_auto(self) -> None:
         """Cancels the 'after' call and generates an event."""
-        try:
-            self.root.after_cancel(self.after_ids.pop())
+        if self.active:
+            self.root.after_cancel(self.after_id)
             self.root.event_generate("<<AutoBackupStopped>>")
-            self.after_ids = []
+            self.after_id = ""
             self.active = False
-        except IndexError:
+        else:
             self.root.event_generate("<<AutoBackupNotStarted>>")
 
     def start_auto_backup(self, user: str, time_frame: int) -> None:
@@ -112,15 +112,15 @@ class BackUpSystem:
 
         if self.active:
             i_d = self.root.after(time_frame, lambda: self.auto_backup(user, time_frame))
-            # id to keep track of which function call the auto back-up is on
-            self.after_ids.append(i_d)
+            # id to keep track of which function call the auto back-up is on (string)
+            self.after_id = i_d
             # Tries to back up the user with the current data
             self.backup_user(user, data)
 
-    def _check_user_for_backup(self, user: str) -> bool:
+    @staticmethod
+    def _check_user_for_backup(user: str, raw_data: dict) -> bool:
         """Checks if a backup exists for the current user."""
-        self.backup_data = utils.read_json(self._save_path, False)
-        for data in self.backup_data['users']:
+        for data in raw_data['users']:
             for users in data.keys():
                 if user == users:
                     return True
@@ -134,7 +134,7 @@ class BackUpSystem:
             self.root.event_generate("<<BackupFailed>>")
         else:
             # Checks if user has a backup already
-            check_user = self._check_user_for_backup(user)
+            check_user = self._check_user_for_backup(user, self.backup_data)
             # If user not in backup, creates a new back up for user
             if not check_user:
                 self._create_backup(user, data)
@@ -144,7 +144,7 @@ class BackUpSystem:
                 self.root.event_generate("<<BackupSuccess>>")
 
     def _create_backup(self, user: str, data: dict) -> None:
-        # If user doesn't have existing save data
+        """Creates a new backup for the current user."""
         new_data = {user: data}
         with open(self._save_path, 'r+') as file:
             file_data = json.load(file)
@@ -154,22 +154,27 @@ class BackUpSystem:
             file.truncate()
 
     def _update_backup(self, user: str, data: dict) -> None:
-        # If users does have a backup, then it updates the current backup with the data given
+        """Updates the backed up data for the current user."""
         for d in self.backup_data['users']:
             for u in d.keys():
                 if u == user:
                     d[u] = data
         utils.dump_json(self._save_path, self.backup_data)
 
-    def restore_user(self, user: str):
+    def restore_user(self, user: str) -> dict:
         """Restores the current user's saved backup if there is one. Returns Data/False"""
-        self.backup_data = utils.read_json(self._save_path, False)
-        if len(self.backup_data['users']) > 0:
-            for data in self.backup_data['users']:
-                for u in data.keys():
-                    if user == u:
-                        self.root.event_generate("<<RestoreSuccess>>")
-                        return data[u]
-        else:
+        raw_data = utils.read_json(self._save_path, False)
+        try:
+            check = self._check_user_for_backup(user, raw_data)
+            if check:
+                for data in raw_data['users']:
+                    for u in data.keys():
+                        if user == u:
+                            self.root.event_generate("<<RestoreSuccess>>")
+                            return data[u]
+            else:
+                self.root.event_generate("<<RestoreFailed>>")
+                return {}
+        except:
             self.root.event_generate("<<RestoreFailed>>")
-            return False
+            return {}

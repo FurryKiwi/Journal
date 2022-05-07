@@ -22,7 +22,7 @@ class DataHandler:
         self.backup_sys = None
 
         self.data = {}
-        self.raw_data = None
+        self.raw_data = {}
         self.current_user = None
         self.signed_in = None
 
@@ -66,7 +66,6 @@ class DataHandler:
         utils.dump_json(self._save_path, self.raw_data)
 
     # Back up Functions
-
     def create_backup_system(self, root) -> None:
         """Creates the backup system for the current user."""
         self.backup_sys = BackUpSystem(root, self)
@@ -83,18 +82,18 @@ class DataHandler:
         """Gets the backed up data from the BackupSystem for the current user.
         Sets the grabbed data and returns boolean."""
         temp_data = self.backup_sys.restore_user(self.current_user)
-        if temp_data:
+        if temp_data != {}:
             self.data = temp_data
             return True
         else:
             return False
 
     def cancel_backup(self) -> None:
-        """Calls the cancel backup function and returns boolean."""
+        """Calls the cancel backup function."""
         self.backup_sys.cancel_auto()
 
     def start_auto_backup(self, time_frame: str) -> None:
-        """Calls the auto backup function and returns boolean."""
+        """Calls the auto backup function."""
         # TODO: Create a dictionary for the milliseconds keys and values
         milliseconds = 30000
         if time_frame == "30":
@@ -109,7 +108,6 @@ class DataHandler:
         return self.data
 
     # Login Functions
-
     def create_new_user(self, new_user: str, new_pw: str) -> bool:
         """Checks if new user already exists, otherwise adds user and pw to the database.
         Returns True if created successfully, otherwise False"""
@@ -133,6 +131,7 @@ class DataHandler:
 
     def log_out_user(self) -> None:
         """Resets the current data used from the previous user and sets back up the database."""
+        self.cancel_backup()
         self.backup_sys = None
         self.data = {}
         self.raw_data = None
@@ -201,7 +200,6 @@ class DataHandler:
         return "", ""
 
     # Getting/Setting of data functions
-
     def add_category(self, entry: str, category: str) -> bool:
         """Adds/Renames a category in the data for the current user."""
         if entry == '':
@@ -241,7 +239,6 @@ class DataHandler:
             return False
 
     def add_text(self, category: str, definition: str, text: str) -> None:
-        """Adds text entry into the data for the current user."""
         self.data[category][definition][0] = text
 
     def delete_category(self, category: str) -> bool:
@@ -260,9 +257,12 @@ class DataHandler:
             return False
 
     def get_categories_by_list(self) -> list:
-        if self.data != {}:
-            return list(self.data.keys())
-        else:
+        try:
+            if self.data != {}:
+                return list(self.data.keys())
+            else:
+                return ["Create a Category"]
+        except AttributeError or TypeError:
             return ["Create a Category"]
 
     def get_definitions_by_list(self, category: str) -> list:
@@ -276,5 +276,3 @@ class DataHandler:
 
     def get_timestamp_by_definition(self, category: str, definition: str) -> str:
         return self.data[category][definition][1]
-
-    # ________________________________

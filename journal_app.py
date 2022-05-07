@@ -6,9 +6,11 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox
 
+# BUILT IN PYTHON 3.10 VERSION
+
 
 import utils
-from custom_classes import Layout
+from custom_classes import Layout, BackGround
 from settings import *
 from data_model import DataHandler
 from login_page import LoginPage
@@ -27,6 +29,7 @@ class Journal:
         self.alert_system = None
         self.main_layout = None
         self.login_page = None
+        self.canvas = None
 
         self.create_login_page()
 
@@ -35,8 +38,6 @@ class Journal:
         self.login_page.run()
 
     def create_file_menu(self, root: tk.Tk) -> None:
-        """Create a basic file drop down menu"""
-        # File drop-down section
         menubar = tk.Menu(root)
         root.config(menu=menubar)
         filemenu = tk.Menu(menubar, tearoff=0)
@@ -68,16 +69,18 @@ class Journal:
 
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?"):
-            self.main_layout.notebook.close_tabs()
+            self.main_layout.notebook.close_tabs(log_out=True)
             self.data_handler.update_json()
             self.data_handler.log_out_user()
+            self.alert_system.cancel_after()
+            del self.canvas
             self.root.destroy()
             self.create_login_page()
 
     def _on_closing(self) -> None:
         """Handles saving and quiting."""
         if tk.messagebox.askyesno("Quit", "Do you want to quit?"):
-            self.main_layout.notebook.close_tabs()
+            self.main_layout.notebook.close_tabs(log_out=True)
             self.data_handler.update_json()
             self.root.destroy()
 
@@ -85,7 +88,7 @@ class Journal:
         """Clears the database for the selected user."""
         if tk.messagebox.askyesno("Clear Data", "Do you want to clear data? It's Permanent!"):
             self.root.event_generate("<<DataClear>>")
-            self.main_layout.notebook.close_tabs()
+            self.main_layout.notebook.close_tabs(clearing=True)
             self.data_handler.clear_data()
             self.main_layout.update_categories()
             self.main_layout.category_box.current(0)
@@ -105,16 +108,13 @@ class Journal:
         utils.set_window(self.root, SCREEN_WIDTH, SCREEN_HEIGHT, self.title)
 
         # Creates a background canvas for everything to be drawn to on top
-        background_img = tk.PhotoImage(file=BACKGROUND_IMG)
-        canvas = tk.Canvas(self.root, height=SCREEN_HEIGHT, width=SCREEN_WIDTH, highlightthickness=0, bd=0)
-        canvas.create_image(400, 300, image=background_img)
-        canvas.pack(expand=True, fill="both")
+        self.canvas = BackGround(self.root, heigh=SCREEN_HEIGHT, width=SCREEN_WIDTH, highlightthickness=0, bd=0)
 
         # Create the file menu
         self.create_file_menu(self.root)
 
         # Creates the Layout class
-        self.main_layout = Layout(canvas, self.data_handler)
+        self.main_layout = Layout(self.canvas, self.data_handler)
 
         # Create the alert system
         self.alert_system = AlertSystem(self.root, self.data_handler, self.main_layout)
@@ -134,9 +134,5 @@ class Journal:
         self.root.mainloop()
 
 
-def main():
-    Journal(TITLE)
-
-
 if __name__ == '__main__':
-    main()
+    Journal(TITLE)

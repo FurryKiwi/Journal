@@ -5,8 +5,18 @@ except ImportError:  # Python 3
     import tkinter as tk
     from tkinter import ttk
     from tkinter import messagebox
+
 import utils
 from settings import *
+
+
+class BackGround(tk.Canvas):
+    def __init__(self, root, *args, **kwargs):
+        tk.Canvas.__init__(self, root, *args, **kwargs)
+        self.root = root
+        self.background_img = tk.PhotoImage(file=BACKGROUND_IMG)
+        self.create_image(400, 300, image=self.background_img)
+        self.pack(expand=True, fill="both")
 
 
 class TabArea(tk.Frame):
@@ -18,7 +28,7 @@ class TabArea(tk.Frame):
         text_frame = tk.Frame(self, borderwidth=1, relief="sunken")
         bottom_frame = tk.Frame(self)
 
-        # Create the text area for main frame
+        # Create the text area for text frame
         self.text_area = tk.Text(text_frame, font=DEFAULT_FONT, padx=2, spacing3=2, wrap=tk.WORD, undo=True)
         self.text_area.insert(tk.END, self.data_handler.get_text_by_definition(category, definition))
 
@@ -29,7 +39,6 @@ class TabArea(tk.Frame):
         # Bottom Frame layout
         label = ttk.Label(bottom_frame,
                           text=f"Created: {self.data_handler.get_timestamp_by_definition(category, definition)}")
-        # Save button
         self.save_btn = ttk.Button(bottom_frame, text="Save", style="Accent.TButton",
                                    command=lambda: self.save_text(category, definition,
                                                                   self.text_area.get(1.0, "end-1c")))
@@ -43,11 +52,8 @@ class TabArea(tk.Frame):
         bottom_frame.pack(side="bottom", fill='x')
         text_frame.pack(side='top', fill='x')
 
-        self.text_area.bind("<End>", lambda event=None: self.close_active_tab(definition))
-
-    def close_active_tab(self, definition: str) -> None:
-        """Used for keyboard shortcut 'End' to close a tab."""
-        self.notebook.close_tab(definition)
+        self.text_area.bind("<End>",
+                            lambda event=None: self.notebook.close_tabs(tab_id=self.notebook.get_tab_ids([definition])))
 
     def save_text(self, category: str, definition: str, text: str) -> None:
         """Save the entered text to the database."""
@@ -57,55 +63,57 @@ class TabArea(tk.Frame):
 
 
 class Layout(tk.Frame):
-    def __init__(self, parent, data_handler, **kwargs):
-        tk.Frame.__init__(self, parent, **kwargs)
-        self.root = parent
+    def __init__(self, root, data_handler, **kwargs):
+        tk.Frame.__init__(self, root, **kwargs)
+        self.root = root
         self.data_handler = data_handler
 
         self.tool_frame = ttk.Frame(self.root, width=SCREEN_WIDTH, height=5, relief="ridge", borderwidth=2)
         self.tool_frame.pack(fill="both", side='top', pady=8, padx=8)
 
         ttk.Button(self.tool_frame, style="Accent.TButton", text="Add Category", width=24,
-                   command=self.add_category_view).pack(side='left', anchor='w', padx=8, pady=8)
+                   command=lambda: self.create_view(state="acategory")).pack(side='left', anchor='w', padx=8, pady=8)
 
         tk.Label(self.tool_frame, text="Alerts:", font=DEFAULT_FONT).pack(side='left', anchor='e', pady=4, padx=4)
 
-        self.user = tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT)
-        self.user.pack(side='right', anchor='e', padx=4, pady=4)
+        tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='right',
+                                                                                                     anchor='e',
+                                                                                                     padx=4,
+                                                                                                     pady=4)
 
-        # Create my label frame
-        self.label_frame = ttk.Frame(self.root, width=50,
-                                     height=SCREEN_HEIGHT, relief="ridge", borderwidth=2)
-        self.label_frame.pack(fill='both', side='left', padx=8, pady=8)
+        # Label frame
+        label_frame = ttk.Frame(self.root, width=50,
+                                height=SCREEN_HEIGHT, relief="ridge", borderwidth=2)
+        label_frame.pack(fill='both', side='left', padx=8, pady=8)
 
-        tk.Label(self.label_frame, text="Categories:", font=DEFAULT_FONT).pack()
+        tk.Label(label_frame, text="Categories:", font=DEFAULT_FONT).pack()
 
         # Create the drop-down category
-        self.category_box = ttk.Combobox(self.label_frame, values=self.data_handler.get_categories_by_list(),
+        self.category_box = ttk.Combobox(label_frame, values=self.data_handler.get_categories_by_list(),
                                          font=DEFAULT_FONT, state="readonly")
         self.category_box.pack(side='top', pady=4, padx=4)
         self.category_box.current(0)
 
         # Create the listbox to display all the definitions
-        self.list_box = tk.Listbox(self.label_frame, width=20, height=SCREEN_HEIGHT,
+        self.list_box = tk.Listbox(label_frame, width=20, height=SCREEN_HEIGHT,
                                    font=DEFAULT_FONT, selectmode=tk.EXTENDED, activestyle=tk.DOTBOX)
         self.list_box.pack(side='top', fill='both', expand=True, pady=4, padx=4)
         self.list_box.configure(highlightcolor=BLACK)
 
         # Create the definition scrollbar
-        self.def_scroll_bar = ttk.Scrollbar(self.list_box)
-        self.def_scroll_bar.pack(side='right', fill='y')
-        self.def_scroll_bar.config(command=self.list_box.yview)
+        def_scroll_bar = ttk.Scrollbar(self.list_box)
+        def_scroll_bar.pack(side='right', fill='y')
+        def_scroll_bar.config(command=self.list_box.yview)
 
-        self.list_box.config(yscrollcommand=self.def_scroll_bar.set)
+        self.list_box.config(yscrollcommand=def_scroll_bar.set)
 
         # Create the entry and button to add definitions
-        self.def_entry = tk.Entry(self.label_frame, validate="key",
+        self.def_entry = tk.Entry(label_frame, validate="key",
                                   validatecommand=(self.root.register(utils.validate_entry), "%P"), font=DEFAULT_FONT,
                                   width=21, background=ENTRY_COLOR)
         self.def_entry.pack(pady=4)
 
-        self.add_definition_btn = ttk.Button(self.label_frame, style="Accent.TButton", text="Add Definition", width=24,
+        self.add_definition_btn = ttk.Button(label_frame, style="Accent.TButton", text="Add Definition", width=24,
                                              command=lambda: self.add_definition(
                                                  self.def_entry.get(),
                                                  self.category_box.get()))
@@ -116,15 +124,6 @@ class Layout(tk.Frame):
                                        height=SCREEN_HEIGHT)
 
     # Class Functions
-    def add_category_view(self) -> None:
-        """Creates a window to add a category to the database."""
-        top_window, entry = utils.create_pop_up("Add Category", self.root)
-
-        ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
-                   command=lambda: self.save_category(entry.get(),
-                                                      top_window)).pack(side='top', padx=4, pady=4)
-        entry.bind("<Return>", lambda e=None: self.save_category(entry.get(), top_window))
-
     def delete_category(self) -> None:
         """Deletion of categories."""
         if tk.messagebox.askyesno("Are you sure?", "Deleting is permanent!"):
@@ -134,26 +133,12 @@ class Layout(tk.Frame):
             check = self.data_handler.delete_category(category)
             if check:
                 close_list = self.notebook.get_tab_ids(definitions)
-                # Has to be sorted and reverse otherwise notebook index gets messed up
-                for i in sorted(close_list, reverse=True):
-                    self.notebook.forget(i)
+                self.notebook.close_tabs(close_list=close_list)
                 self.update_categories()
                 self.set_category_list()
                 del close_list
             else:
                 self.root.event_generate("<<CategoryDeletedFailed>>")
-
-    def rename_category_view(self) -> None:
-        """Renaming categories view part."""
-        category = self.category_box.get()
-
-        top_window, entry = utils.create_pop_up("Rename Category", self.root)
-
-        ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
-                   command=lambda: self.save_category(entry.get(), top_window,
-                                                      category)).pack(side='top', padx=4, pady=4)
-
-        entry.bind("<Return>", lambda e=None: self.save_category(entry.get(), top_window, category))
 
     def set_category_list(self, category=None) -> None:
         """Set the category list to specified category or to the first one in the list."""
@@ -166,7 +151,7 @@ class Layout(tk.Frame):
             self.category_box.current(0)
         self.update_list()
 
-    def save_category(self, entry: str, window: tk.Toplevel, category=None) -> None:
+    def add_category(self, entry: str, window: tk.Toplevel, category=None) -> None:
         """Save the category list to database."""
         check = self.data_handler.add_category(entry, category)
         if check:
@@ -178,15 +163,14 @@ class Layout(tk.Frame):
 
     def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
-           and closes the toplevel window if opened."""
+           and closes the toplevel window if opened. Also checks if renaming a definition."""
         # Checks if definition is getting renamed
         if definition is not None:
             active_tabs = self.notebook.get_active_tabs()
             for text, i_d in active_tabs.items():
                 # Closes the tab that's being renamed
                 if definition == text:
-                    self.notebook.forget(i_d)
-                    self.notebook.check_opened_tabs(definition)
+                    self.notebook.close_tabs(tab_id=i_d)
 
         check = self.data_handler.add_definition(entry, category, definition)
         if check:
@@ -214,32 +198,48 @@ class Layout(tk.Frame):
             check = self.data_handler.delete_definition(category, temp_list)
             if check:
                 close_list = self.notebook.get_tab_ids(temp_list)
-                # Closes specified tabs from their ID's
-                # Has to be sorted and reverse otherwise notebook index gets messed up
-                for i in sorted(close_list, reverse=True):
-                    self.notebook.forget(i)
-                self.notebook.check_opened_tabs(deletion=True)
+                self.notebook.close_tabs(close_list=close_list)
                 self.update_list()
                 del temp_list
                 del close_list
             else:
                 self.root.event_generate("<<DefinitionDeletedFailed>>")
 
-    def rename_definition_view(self, instance, index) -> None:
-        """Renaming definitions view part."""
-        definition = instance.get(index)
-        category = self.category_box.get()
+    def create_view(self, instance: tk.Listbox = None, index: list = None, state: str = None):
+        """Creates the pop-up window for renaming, adding of categories and renaming definitions."""
+        if state == "definition":
+            definition = instance.get(index)
+            category = self.category_box.get()
+            top_window, entry = utils.create_pop_up("Rename Definition", self.root)
 
-        top_window, entry = utils.create_pop_up("Rename Definition", self.root)
+            ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
+                       command=lambda e=None: self.add_definition(entry.get(), category, definition,
+                                                                  window=top_window)).pack(side='top', padx=4, pady=4)
 
-        ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
-                   command=lambda e=None: self.add_definition(entry.get(), category, definition,
-                                                              window=top_window)).pack(side='top', padx=4, pady=4)
+            entry.bind("<Return>",
+                       lambda e=None: self.add_definition(entry.get(), category, definition, window=top_window))
 
-        entry.bind("<Return>", lambda e=None: self.add_definition(entry.get(), category, definition, window=top_window))
+        elif state == "rcategory":
+            category = self.category_box.get()
+
+            top_window, entry = utils.create_pop_up("Rename Category", self.root)
+
+            ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
+                       command=lambda: self.add_category(entry.get(), top_window,
+                                                         category)).pack(side='top', padx=4, pady=4)
+
+            entry.bind("<Return>", lambda e=None: self.add_category(entry.get(), top_window, category))
+
+        elif state == "acategory":
+            top_window, entry = utils.create_pop_up("Add Category", self.root)
+
+            ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
+                       command=lambda: self.add_category(entry.get(),
+                                                         top_window)).pack(side='top', padx=4, pady=4)
+            entry.bind("<Return>", lambda e=None: self.add_category(entry.get(), top_window))
 
     def event_biding(self) -> None:
-        """Handles all the binding of events to specific widgets."""
+        """Handles the binding of events to specific widgets."""
         self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
 
         self.list_box.bind("<Double-1>", lambda event=None: self.notebook.add_tab(
@@ -262,7 +262,8 @@ class Layout(tk.Frame):
                 menu = tk.Menu(self.root, tearoff=0)
                 menu.add_command(label="Delete", command=lambda: self.delete_definition(instance, index))
                 if len(index) == 1:
-                    menu.add_command(label="Rename", command=lambda: self.rename_definition_view(instance, index))
+                    menu.add_command(label="Rename",
+                                     command=lambda: self.create_view(instance, index, state='definition'))
                 try:
                     menu.tk_popup(event.x_root, event.y_root)
                 finally:
@@ -271,7 +272,7 @@ class Layout(tk.Frame):
         if isinstance(instance, ttk.Combobox):
             menu = tk.Menu(self.root, tearoff=0)
             menu.add_command(label="Delete", command=self.delete_category)
-            menu.add_command(label="Rename", command=self.rename_category_view)
+            menu.add_command(label="Rename", command=lambda: self.create_view(state="rcategory"))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -317,18 +318,7 @@ class CustomNotebook(ttk.Notebook):
 
         self.bind("<ButtonPress-1>", self.on_close_press, True)
         self.bind("<ButtonRelease-1>", self.on_close_release)
-        self.bind("<<NotebookTabClosed>>", lambda e=None: self.check_opened_tabs())
-
-    def close_tab(self, definition: str) -> None:
-        """To close a tab via keyboard shortcut."""
-        if definition:
-            tab_id = self.get_tab_ids([definition])
-            self.forget(tab_id)
-            self.check_opened_tabs(definition)
-        if self.packed:
-            self.focus_set()
-        else:
-            self.root.focus_set()
+        self.bind("<<NotebookTabClosed>>", lambda e=None: self.check_for_unpack())
 
     def add_tab(self, category: str, definition: str) -> None:
         """Calls the create_tab method to create elements and adds them to the notebook."""
@@ -357,16 +347,36 @@ class CustomNotebook(ttk.Notebook):
         """Creates the elements for the tab from the add tab method."""
         return TabArea(self, self.data_handler, category, definition)
 
-    def close_tabs(self) -> None:
-        """Close all opened tabs of that user before switching to a new user."""
-        if self.packed:
+    def close_tabs(self, close_list: list = None, tab_id: int = None, log_out: bool = False,
+                   clearing: bool = False) -> None:
+        """Closes tabs via keyboard shortcut, exit button, renaming definitions, deleting definitions,
+        deleting categories. Calls the save_text prior to logging out."""
+        if log_out:
             close_list = self.get_tab_ids()
-            for i in sorted(close_list, reverse=True):
-                self.forget(i)
             self.save_text()
-            self.pack_forget()
-            self.packed = False
-            self.frames = {}
+        if clearing:
+            close_list = self.get_tab_ids()
+
+        if tab_id is not None:
+            definition = self.tab(tab_id, 'text')
+            close_list = [tab_id]
+            self.save_text(definition)
+        elif close_list is not None:
+            self.delete_frames(close_list)
+
+        for i in sorted(close_list, reverse=True):
+            self.forget(i)
+
+        self.event_generate("<<NotebookTabClosed>>")
+        if self.packed:
+            self.focus_set()
+        else:
+            self.root.focus_set()
+
+    def delete_frames(self, frames: list) -> None:
+        """Deletes frames from the frame's dict."""
+        for tab_id in frames:
+            del self.frames[self.tab(tab_id, 'text')]
 
     def set_tab(self, definition: str, active_tabs: dict) -> None:
         """Sets the opened tab to the specified definition."""
@@ -400,31 +410,23 @@ class CustomNotebook(ttk.Notebook):
         self.packed = True
 
     def save_text(self, definition: str = None) -> None:
-        """Invokes the save text function for closing tabs."""
+        """Invokes the save text function for closing tabs and auto-backup sequence."""
         # If definition is specified it's called from renaming the tab.
         if definition:
             delete_frame = None
-            for d, frame in self.frames.items():
-                if definition == d:
+            for text, frame in self.frames.items():
+                if definition == text:
                     frame.save_btn.invoke()
-                    delete_frame = d
+                    delete_frame = text
             del self.frames[delete_frame]
         else:
             # Used for closing all the tabs to save all data
             for frame in self.frames.values():
                 frame.save_btn.invoke()
 
-    def check_opened_tabs(self, definition: str = None, deletion: bool = False) -> None:
-        """Checks if there are any opened tabs in the notebook to unpack the notebook from the frame."""
+    def check_for_unpack(self) -> None:
+        """Checks if any tabs are opened and unpacks the notebook."""
         active_tabs = self.get_active_tabs()
-        if not deletion:
-            # If renaming a tab
-            if definition:
-                self.save_text(definition)
-            else:
-                # For closing all tabs
-                self.save_text()
-            self.event_generate("<<SavedText>>")
         if len(active_tabs) == 0:
             self.pack_forget()
             self.packed = False
@@ -466,8 +468,7 @@ class CustomNotebook(ttk.Notebook):
         index = self.index("@%d,%d" % (event.x, event.y))
 
         if self._active == index:
-            self.forget(index)
-            self.event_generate("<<NotebookTabClosed>>")
+            self.close_tabs(tab_id=index)
 
         self.state(["!pressed"])
         self._active = None

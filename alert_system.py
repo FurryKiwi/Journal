@@ -10,12 +10,14 @@ from settings import *
 
 
 class AlertSystem:
+
     def __init__(self, root, data_handler, main_layout):
         self.root = root
         self.data_handler = data_handler
         self.main_layout = main_layout
         self.queue = []
         self.shown = False
+        self.after_id = ''
 
     def show_alert(self) -> None:
         if not self.shown:
@@ -24,7 +26,7 @@ class AlertSystem:
                 label = tk.Label(self.main_layout.tool_frame, text=message, fg=color, font=DEFAULT_FONT)
                 label.pack(side='left', anchor='w', padx=4, pady=4)
                 self.shown = True
-                self.root.after(2000, lambda: self.clear_canvas(label))
+                self.after_id = self.root.after(2000, lambda: self.clear_canvas(label))
             except IndexError:
                 return
 
@@ -33,6 +35,9 @@ class AlertSystem:
         del label
         self.shown = False
         self.show_alert()
+
+    def cancel_after(self):
+        self.root.after_cancel(self.after_id)
 
     def saved_text(self):
         self.queue.append(("Entry has been saved.", "white"))

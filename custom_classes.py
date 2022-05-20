@@ -11,6 +11,7 @@ from settings import *
 
 
 class BackGround(tk.Canvas):
+
     def __init__(self, root, *args, **kwargs):
         tk.Canvas.__init__(self, root, *args, **kwargs)
         self.root = root
@@ -20,6 +21,7 @@ class BackGround(tk.Canvas):
 
 
 class TabArea(tk.Frame):
+
     def __init__(self, notebook, data_handler, category, definition, *args, **kwargs):
         tk.Frame.__init__(self, notebook, *args, **kwargs)
         self.data_handler = data_handler
@@ -63,6 +65,7 @@ class TabArea(tk.Frame):
 
 
 class Layout(tk.Frame):
+
     def __init__(self, root, data_handler, **kwargs):
         tk.Frame.__init__(self, root, **kwargs)
         self.root = root
@@ -77,9 +80,9 @@ class Layout(tk.Frame):
         tk.Label(self.tool_frame, text="Alerts:", font=DEFAULT_FONT).pack(side='left', anchor='e', pady=4, padx=4)
 
         tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='right',
-                                                                                                     anchor='e',
-                                                                                                     padx=4,
-                                                                                                     pady=4)
+                                                                                                          anchor='e',
+                                                                                                          padx=4,
+                                                                                                          pady=4)
 
         # Label frame
         label_frame = ttk.Frame(self.root, width=50,
@@ -119,7 +122,6 @@ class Layout(tk.Frame):
                                                  self.category_box.get()))
         self.add_definition_btn.pack(padx=4, pady=4)
 
-        # Creates the notebook
         self.notebook = CustomNotebook(self.root, data_handler=self.data_handler, width=SCREEN_WIDTH,
                                        height=SCREEN_HEIGHT)
 
@@ -174,13 +176,11 @@ class Layout(tk.Frame):
 
         check = self.data_handler.add_definition(entry, category, definition)
         if check:
-            self.def_entry.delete(0, len(entry))
-            self.def_entry.focus_set()
             self.update_list()
         else:
             self.root.event_generate("<<DefinitionSavedFailed>>")
-            self.def_entry.delete(0, len(entry))
-            self.def_entry.focus_set()
+        self.def_entry.delete(0, len(entry))
+        self.def_entry.focus_set()
         if window:
             window.destroy()
 
@@ -207,9 +207,9 @@ class Layout(tk.Frame):
 
     def create_view(self, instance: tk.Listbox = None, index: list = None, state: str = None):
         """Creates the pop-up window for renaming, adding of categories and renaming definitions."""
-        if state == "definition":
+        category = self.category_box.get()
+        if state == "rdefinition":
             definition = instance.get(index)
-            category = self.category_box.get()
             top_window, entry = utils.create_pop_up("Rename Definition", self.root)
 
             ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
@@ -218,10 +218,9 @@ class Layout(tk.Frame):
 
             entry.bind("<Return>",
                        lambda e=None: self.add_definition(entry.get(), category, definition, window=top_window))
+            entry.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
 
         elif state == "rcategory":
-            category = self.category_box.get()
-
             top_window, entry = utils.create_pop_up("Rename Category", self.root)
 
             ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
@@ -249,10 +248,11 @@ class Layout(tk.Frame):
             self.category_box.get(), self.get_list_box_item()))
 
         self.def_entry.bind("<Return>", lambda event=None: self.add_definition_btn.invoke())
+        self.def_entry.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
         self.list_box.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
         self.category_box.bind("<ButtonPress-3>", lambda event=None: self.pop_up_menu(event))
 
-    def pop_up_menu(self, event: (tk.Listbox, ttk.Combobox)) -> None:
+    def pop_up_menu(self, event: (tk.Listbox, ttk.Combobox, tk.Entry)) -> None:
         """Create a popup menu by right-clicking with options."""
         instance = event.widget
         # Listbox drop down menu
@@ -263,7 +263,7 @@ class Layout(tk.Frame):
                 menu.add_command(label="Delete", command=lambda: self.delete_definition(instance, index))
                 if len(index) == 1:
                     menu.add_command(label="Rename",
-                                     command=lambda: self.create_view(instance, index, state='definition'))
+                                     command=lambda: self.create_view(instance, index, state='rdefinition'))
                 try:
                     menu.tk_popup(event.x_root, event.y_root)
                 finally:
@@ -273,6 +273,14 @@ class Layout(tk.Frame):
             menu = tk.Menu(self.root, tearoff=0)
             menu.add_command(label="Delete", command=self.delete_category)
             menu.add_command(label="Rename", command=lambda: self.create_view(state="rcategory"))
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+        # Definition entry drop down menu
+        if isinstance(instance, tk.Entry):
+            menu = tk.Menu(self.root, tearoff=0)
+            menu.add_command(label="Add Date", command=lambda: utils.get_current_time(instance))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -410,7 +418,7 @@ class CustomNotebook(ttk.Notebook):
         self.packed = True
 
     def save_text(self, definition: str = None) -> None:
-        """Invokes the save text function for closing tabs and auto-backup sequence."""
+        """Invokes the save text function for closing tabs."""
         # If definition is specified it's called from renaming the tab.
         if definition:
             delete_frame = None
@@ -444,7 +452,6 @@ class CustomNotebook(ttk.Notebook):
 
     def on_close_press(self, event) -> str:
         """Called when the button is pressed over the close button"""
-
         element = self.identify(event.x, event.y)
 
         if "close" in element:
@@ -506,7 +513,6 @@ class CustomNotebook(ttk.Notebook):
                 ]
             })
         ])
-        # style.theme_use("azure-dark")
         self.style.theme_settings("azure-dark", {
             "TNotebook": {"configure": {"font": TAB_FONT, "padding": [0, 0], "focuscolor": "."}},
             "TNotebook.Tab": {

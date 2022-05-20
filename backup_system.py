@@ -162,19 +162,15 @@ class BackUpSystem:
         utils.dump_json(self._save_path, self.backup_data)
 
     def restore_user(self, user: str) -> dict:
-        """Restores the current user's saved backup if there is one. Returns Data/False"""
+        """Restores the current user's saved backup if there is one. Returns Data."""
         raw_data = utils.read_json(self._save_path, False)
-        try:
-            check = self._check_user_for_backup(user, raw_data)
-            if check:
-                for data in raw_data['users']:
-                    for u in data.keys():
-                        if user == u:
-                            self.root.event_generate("<<RestoreSuccess>>")
-                            return data[u]
-            else:
-                self.root.event_generate("<<RestoreFailed>>")
-                return {}
-        except:
+        check = self._check_user_for_backup(user, raw_data)
+        if check:
+            for data in raw_data['users']:
+                for u in data.keys():
+                    if user == u:
+                        self.root.event_generate("<<RestoreSuccess>>")
+                        return data[u]
+        else:
             self.root.event_generate("<<RestoreFailed>>")
             return {}

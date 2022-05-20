@@ -18,7 +18,6 @@ class DataHandler:
     _save_path = ""
 
     def __init__(self):
-
         self.backup_sys = None
 
         self.data = {}
@@ -210,7 +209,11 @@ class DataHandler:
         try:
             if category in self.data.keys():
                 # If renaming a category
-                self.data[entry] = self.data.pop(category)
+                index = list(self.data.keys()).index(category)
+                items = list(self.data.items())
+                items.insert(index, (entry, self.data[category]))
+                self.data = dict(items)
+                self.data.pop(category)
                 return True
             else:
                 # Adding a new category
@@ -229,7 +232,11 @@ class DataHandler:
         try:
             if definition in self.data[category]:
                 # If renaming an existing definition
-                self.data[category][entry] = self.data[category].pop(definition)
+                index = list(self.data[category].keys()).index(definition)
+                items = list(self.data[category].items())
+                items.insert(index, (entry, self.data[category][definition]))
+                self.data[category] = dict(items)
+                self.data[category].pop(definition)
                 return True
             else:
                 # Add new definition

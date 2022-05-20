@@ -8,7 +8,6 @@ BACKGROUND_IMG = "Images/gradient_background.png"
 CLOSE_BTN = "Images/close-button.png"
 CLOSE_BTN_ACTIVE = "Images/close.png"
 CLOSE_BTN_PRESSED = "Images/close_active.png"
-# ___
 
 TCL_PATH = "tcl_files/azure.tcl"
 

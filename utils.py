@@ -21,23 +21,24 @@ def set_folder_directory(cwd: str, directory: str, filename: str) -> str:
 
 
 def dump_json(filepath: str, data: dict) -> None:
-    """Dumps data to a json file."""
     with open(filepath, 'w') as file:
         json.dump(data, file, indent=4)
         file.truncate()
 
 
 def read_json(filename, database: bool) -> dict:
-    """Read file data from the json file. Other-wise creates a new backup file."""
+    """Read file data from the json file. Other-wise creates a new file."""
     try:
         with open(filename, 'r') as file:
+            if os.path.getsize(filename) == 2 or os.path.getsize(filename) == 0:
+                return create_json(filename, database)
             return json.load(file)
     except FileNotFoundError:
         return create_json(filename, database)
 
 
 def create_json(filename, database: bool) -> dict:
-    """Creates the backup json file if it doesn't exist."""
+    """Creates the json file if it doesn't exist."""
     if database:
         new_data = {"current": "", "signed_in": "", "users": []}
     else:
@@ -86,6 +87,11 @@ def validate_entry(entry):
 
 def get_time():
     return time.ctime()
+
+
+def get_current_time(entry):
+    entry.delete(0, len(entry.get()))
+    entry.insert(0, time.strftime("%B %d, %Y"))
 
 
 def set_window(root, w, h, title) -> None:

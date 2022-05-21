@@ -8,7 +8,6 @@ except ImportError:  # Python 3
 
 # BUILT IN PYTHON 3.10 VERSION
 
-
 import utils
 from custom_classes import Layout, BackGround
 from settings import *
@@ -50,21 +49,6 @@ class Journal:
 
     def event_biding(self) -> None:
         """Handles all the binding of events to specific widgets."""
-        self.root.bind("<<AutoBackupStopped>>", lambda event=None: self.alert_system.auto_backup_stopped())
-        self.root.bind("<<AutoBackupStarted>>", lambda event=None: self.alert_system.auto_backup_started())
-        self.root.bind("<<AutoBackupNotStarted>>", lambda event=None: self.alert_system.auto_backup_not_started())
-        self.root.bind("<<AutoBackupNotStartedNoData>>", lambda event=None: self.alert_system.auto_backup_no_data())
-        self.root.bind("<<BackupFailed>>", lambda event=None: self.alert_system.backup_failed())
-        self.root.bind("<<BackupSuccess>>", lambda event=None: self.alert_system.backup_success())
-        self.root.bind("<<RestoreSuccess>>", lambda event=None: self.alert_system.restore_success())
-        self.root.bind("<<RestoreFailed>>", lambda event=None: self.alert_system.restore_failed())
-        self.root.bind("<<CategoryDeletedFailed>>", lambda event=None: self.alert_system.delete_category_failed())
-        self.root.bind("<<CategorySavedFailed>>", lambda event=None: self.alert_system.category_failed())
-        self.root.bind("<<DefinitionSavedFailed>>", lambda event=None: self.alert_system.definition_failed())
-        self.root.bind("<<DefinitionDeletedFailed>>", lambda event=None: self.alert_system.delete_definition_failed())
-        self.root.bind("<<DataClear>>", lambda event=None: self.alert_system.data_cleared())
-        self.root.bind("<<TabLimit>>", lambda event=None: self.alert_system.tab_limit())
-        self.root.bind("<<SavedText>>", lambda event=None: self.alert_system.saved_text())
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
 
     def _log_out(self):
@@ -87,7 +71,7 @@ class Journal:
     def _on_clearing(self) -> None:
         """Clears the database for the selected user."""
         if tk.messagebox.askyesno("Clear Data", "Do you want to clear data? It's Permanent!"):
-            self.root.event_generate("<<DataClear>>")
+            self.alert_system.show_alert(("Data was cleared.", "white"))
             self.main_layout.notebook.close_tabs(clearing=True)
             self.data_handler.clear_data()
             self.main_layout.update_categories()
@@ -101,8 +85,11 @@ class Journal:
         self.root.tk.call("source", self._tcl_path)
         self.root.tk.call("set_theme", "dark")
 
+        # Create the alert system
+        self.alert_system = AlertSystem(self.root)
+
         # Setup backup system
-        self.data_handler.create_backup_system(self.root)
+        self.data_handler.create_backup_system(self.root, self.alert_system)
 
         # Set window resizable
         utils.set_window(self.root, SCREEN_WIDTH, SCREEN_HEIGHT, self.title)
@@ -114,10 +101,7 @@ class Journal:
         self.create_file_menu(self.root)
 
         # Creates the Layout class
-        self.main_layout = Layout(self.canvas, self.data_handler)
-
-        # Create the alert system
-        self.alert_system = AlertSystem(self.root, self.data_handler, self.main_layout)
+        self.main_layout = Layout(self.canvas, self.data_handler, self.alert_system)
 
         # Sets the category to the first one and populates the listbox
         self.main_layout.update_list()

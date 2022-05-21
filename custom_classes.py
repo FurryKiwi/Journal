@@ -22,10 +22,11 @@ class BackGround(tk.Canvas):
 
 class TabArea(tk.Frame):
 
-    def __init__(self, notebook, data_handler, category, definition, *args, **kwargs):
+    def __init__(self, notebook, data_handler, category, definition, alert_system, *args, **kwargs):
         tk.Frame.__init__(self, notebook, *args, **kwargs)
         self.data_handler = data_handler
         self.notebook = notebook
+        self.alert_system = alert_system
 
         text_frame = tk.Frame(self, borderwidth=1, relief="sunken")
         bottom_frame = tk.Frame(self)
@@ -61,15 +62,17 @@ class TabArea(tk.Frame):
         """Save the entered text to the database."""
         self.data_handler.add_text(category, definition, text)
         self.data_handler.update_json()
-        self.event_generate("<<SavedText>>")
+        self.alert_system.show_alert(("Entry has been saved.", "white"))
 
 
 class Layout(tk.Frame):
 
-    def __init__(self, root, data_handler, **kwargs):
+    def __init__(self, root, data_handler, alert_system, **kwargs):
         tk.Frame.__init__(self, root, **kwargs)
         self.root = root
         self.data_handler = data_handler
+        self.alert_system = alert_system
+        self.alert_system.main_layout = self
 
         self.tool_frame = ttk.Frame(self.root, width=SCREEN_WIDTH, height=5, relief="ridge", borderwidth=2)
         self.tool_frame.pack(fill="both", side='top', pady=8, padx=8)
@@ -122,8 +125,8 @@ class Layout(tk.Frame):
                                                  self.category_box.get()))
         self.add_definition_btn.pack(padx=4, pady=4)
 
-        self.notebook = CustomNotebook(self.root, data_handler=self.data_handler, width=SCREEN_WIDTH,
-                                       height=SCREEN_HEIGHT)
+        self.notebook = CustomNotebook(self.root, data_handler=self.data_handler, alert_system=self.alert_system,
+                                       width=SCREEN_WIDTH, height=SCREEN_HEIGHT)
 
     # Class Functions
     def delete_category(self) -> None:
@@ -140,7 +143,7 @@ class Layout(tk.Frame):
                 self.set_category_list()
                 del close_list
             else:
-                self.root.event_generate("<<CategoryDeletedFailed>>")
+                self.alert_system.show_alert(("Category doesn't exist.", "red"))
 
     def set_category_list(self, category=None) -> None:
         """Set the category list to specified category or to the first one in the list."""
@@ -161,7 +164,7 @@ class Layout(tk.Frame):
             self.update_categories()
             self.set_category_list(entry)
         else:
-            self.root.event_generate("<<CategorySavedFailed>>")
+            self.alert_system.show_alert(("Could not save category.", "red"))
 
     def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
@@ -178,7 +181,7 @@ class Layout(tk.Frame):
         if check:
             self.update_list()
         else:
-            self.root.event_generate("<<DefinitionSavedFailed>>")
+            self.alert_system.show_alert(("Could not save definition.", "red"))
         self.def_entry.delete(0, len(entry))
         self.def_entry.focus_set()
         if window:
@@ -203,7 +206,7 @@ class Layout(tk.Frame):
                 del temp_list
                 del close_list
             else:
-                self.root.event_generate("<<DefinitionDeletedFailed>>")
+                self.alert_system.show_alert(("Definition doesn't exist.", "red"))
 
     def create_view(self, instance: tk.Listbox = None, index: list = None, state: str = None):
         """Creates the pop-up window for renaming, adding of categories and renaming definitions."""
@@ -310,16 +313,17 @@ class Layout(tk.Frame):
 
 class CustomNotebook(ttk.Notebook):
 
-    def __init__(self, root, *args, data_handler, **kwargs):
+    def __init__(self, root, alert_system, data_handler, *args, **kwargs):
 
         kwargs["style"] = "TNotebook"
         ttk.Notebook.__init__(self, root, *args, **kwargs)
         self.root = root
-        self.style = ttk.Style()
+        self.data_handler = data_handler
+        self.alert_system = alert_system
 
+        self.style = ttk.Style()
         self.__initialize_custom_style()
 
-        self.data_handler = data_handler
         self._active = None
         self.packed = False
         self.frames = {}
@@ -349,11 +353,11 @@ class CustomNotebook(ttk.Notebook):
             if definition in active_tabs:
                 self.set_tab(definition, active_tabs)
             else:
-                self.event_generate("<<TabLimit>>")
+                self.alert_system.show_alert(("Tab limit has been met.", "red"))
 
     def create_tab(self, category: str, definition: str) -> tk.Frame:
         """Creates the elements for the tab from the add tab method."""
-        return TabArea(self, self.data_handler, category, definition)
+        return TabArea(self, self.data_handler, category, definition, self.alert_system)
 
     def close_tabs(self, close_list: list = None, tab_id: int = None, log_out: bool = False,
                    clearing: bool = False) -> None:

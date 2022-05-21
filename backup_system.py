@@ -71,9 +71,10 @@ class BackUpSystem:
     _directory = "Back Ups"
     _save_path = ""
 
-    def __init__(self, root, data_handler):
+    def __init__(self, root, data_handler, alert_system):
         self.root = root
         self.data_handler = data_handler
+        self.alert_system = alert_system
 
         self.backup_data = None
         self.active = False
@@ -84,19 +85,19 @@ class BackUpSystem:
         """Cancels the 'after' call and generates an event."""
         if self.active:
             self.root.after_cancel(self.after_id)
-            self.root.event_generate("<<AutoBackupStopped>>")
+            self.alert_system.show_alert(("Auto backup has stopped.", "red"))
             self.after_id = ""
             self.active = False
         else:
-            self.root.event_generate("<<AutoBackupNotStarted>>")
+            self.alert_system.show_alert(("Auto backup has not been started.", "red"))
 
     def start_auto_backup(self, user: str, time_frame: int) -> None:
         data = self.data_handler.get_data()
         # If not data, cancels auto backup, and generates event for notification to grab
         if data == {}:
-            self.root.event_generate("<<AutoBackupNotStartedNoData>>")
+            self.alert_system.show_alert(("Auto backup could not be set with no data.", "red"))
         else:
-            self.root.event_generate("<<AutoBackupStarted>>")
+            self.alert_system.show_alert(("Auto backup has started.", "white"))
             self.active = True
             self.auto_backup(user, time_frame)
 
@@ -131,17 +132,16 @@ class BackUpSystem:
         self.backup_data = utils.read_json(self._save_path, False)
         # If no data is being passed, then returns false
         if data == {}:
-            self.root.event_generate("<<BackupFailed>>")
+            self.alert_system.show_alert(("No data to backup.", "red"))
         else:
             # Checks if user has a backup already
             check_user = self._check_user_for_backup(user, self.backup_data)
             # If user not in backup, creates a new back up for user
             if not check_user:
                 self._create_backup(user, data)
-                self.root.event_generate("<<BackupSuccess>>")
             else:
                 self._update_backup(user, data)
-                self.root.event_generate("<<BackupSuccess>>")
+            self.alert_system.show_alert(("Backup complete.", "white"))
 
     def _create_backup(self, user: str, data: dict) -> None:
         """Creates a new backup for the current user."""
@@ -169,8 +169,8 @@ class BackUpSystem:
             for data in raw_data['users']:
                 for u in data.keys():
                     if user == u:
-                        self.root.event_generate("<<RestoreSuccess>>")
+                        self.alert_system.show_alert(("Restored user's data.", "white"))
                         return data[u]
         else:
-            self.root.event_generate("<<RestoreFailed>>")
+            self.alert_system.show_alert(("No data to restore for user.", "red"))
             return {}

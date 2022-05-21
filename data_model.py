@@ -65,9 +65,9 @@ class DataHandler:
         utils.dump_json(self._save_path, self.raw_data)
 
     # Back up Functions
-    def create_backup_system(self, root) -> None:
+    def create_backup_system(self, root, alert_system) -> None:
         """Creates the backup system for the current user."""
-        self.backup_sys = BackUpSystem(root, self)
+        self.backup_sys = BackUpSystem(root, self, alert_system)
 
     def create_backup_view(self, root, main_layout):
         """Creates the backup view page."""

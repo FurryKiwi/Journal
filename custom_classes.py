@@ -65,6 +65,99 @@ class TabArea(tk.Frame):
         self.alert_system.show_alert(("Entry has been saved.", "white"))
 
 
+class CustomListBox(tk.Listbox):
+
+    def __init__(self, root, data_handler, category, **kw):
+        kw['selectmode'] = tk.EXTENDED
+        tk.Listbox.__init__(self, root, kw)
+        self.root = root
+        self.data_handler = data_handler
+        self.category = category
+        self.bind('<Button-1>', self.set_current)
+        self.bind('<Control-1>', self.toggle_selection)
+        self.bind('<B1-Motion>', self.shift_selection)
+        self.selection = False
+        self.shifting = False
+        self.ctrl_clicked = False
+        self.unlock_shifting()
+
+    def save_new_order(self):
+        new_list_order = list(self.get(0, tk.END))
+        self.data_handler.update_listbox(new_list_order, self.category)
+
+    def set_current(self, event):
+        self.ctrl_clicked = False
+        i = self.nearest(event.y)
+        self.selection = self.selection_includes(i)
+        if self.selection:
+            return 'break'
+
+    def toggle_selection(self, event):
+        self.ctrl_clicked = True
+
+    def move_item(self, source, target):
+        if not self.ctrl_clicked:
+            element = self.get(source)
+            self.delete(source)
+            self.insert(target, element)
+
+    def unlock_shifting(self):
+        self.shifting = False
+
+    def lock_shifting(self):
+        # prevent moving processes from disturbing each other
+        # and prevent scrolling too fast
+        # when dragged to the top/bottom of visible area
+        self.shifting = True
+
+    def shift_selection(self, event):
+        if self.ctrl_clicked:
+            return
+        selection = self.curselection()
+        if not self.selection or len(selection) == 0:
+            return
+
+        selection_range = range(min(selection), max(selection))
+        current_index = self.nearest(event.y)
+
+        if self.shifting:
+            return
+
+        line_height = 15
+        bottom_y = self.winfo_height()
+        if event.y >= bottom_y - line_height:
+            self.lock_shifting()
+            self.see(self.nearest(bottom_y - line_height) + 1)
+            self.root.after(500, self.unlock_shifting)
+        if event.y <= line_height:
+            self.lock_shifting()
+            self.see(self.nearest(line_height) - 1)
+            self.root.after(500, self.unlock_shifting)
+
+        if current_index < min(selection):
+            self.lock_shifting()
+            not_in_index = 0
+            for i in selection_range[::-1]:
+                if not self.selection_includes(i):
+                    self.move_item(i, max(selection) - not_in_index)
+                    not_in_index += 1
+            current_index = min(selection) - 1
+            self.move_item(current_index, current_index + len(selection))
+            self.save_new_order()
+        elif current_index > max(selection):
+            self.lock_shifting()
+            not_in_index = 0
+            for i in selection_range:
+                if not self.selection_includes(i):
+                    self.move_item(i, min(selection) + not_in_index)
+                    not_in_index += 1
+            current_index = max(selection) + 1
+            self.move_item(current_index, current_index - len(selection))
+            self.save_new_order()
+        self.unlock_shifting()
+        return "break"
+
+
 class Layout(tk.Frame):
 
     def __init__(self, root, data_handler, alert_system, **kwargs):
@@ -101,8 +194,9 @@ class Layout(tk.Frame):
         self.category_box.current(0)
 
         # Create the listbox to display all the definitions
-        self.list_box = tk.Listbox(label_frame, width=20, height=SCREEN_HEIGHT,
-                                   font=DEFAULT_FONT, selectmode=tk.EXTENDED, activestyle=tk.DOTBOX)
+        self.list_box = CustomListBox(label_frame, width=20, height=SCREEN_HEIGHT, font=DEFAULT_FONT,
+                                      activestyle=tk.DOTBOX, data_handler=self.data_handler,
+                                      category=self.category_box.current(0))
         self.list_box.pack(side='top', fill='both', expand=True, pady=4, padx=4)
         self.list_box.configure(highlightcolor=BLACK)
 
@@ -292,8 +386,12 @@ class Layout(tk.Frame):
     def get_list_box_item(self) -> str:
         """Returns the selected list box item."""
         index = self.list_box.curselection()
-        definition = self.list_box.get(index)
-        return definition
+        if len(index) > 1:
+            for i in index:
+                return self.list_box.get(i)
+        else:
+            definition = self.list_box.get(index)
+            return definition
 
     def update_list(self) -> None:
         """Updates the definition list from selected category."""
@@ -301,6 +399,7 @@ class Layout(tk.Frame):
         if self.list_box.size() != 0:
             self.list_box.delete(0, self.list_box.size())
         temp_list = self.data_handler.get_definitions_by_list(category)
+        self.list_box.category = category
         if temp_list is not None:
             for definition in temp_list:
                 self.list_box.insert(tk.END, definition)

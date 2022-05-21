@@ -226,7 +226,7 @@ class DataHandler:
         """Adds/Renames a definition in the data for the current user."""
         if entry == '':
             return False
-        # Check if adding a definition to an existing definition
+        # Check if adding a definition that exists
         if entry in self.data[category]:
             return False
         try:
@@ -247,6 +247,16 @@ class DataHandler:
 
     def add_text(self, category: str, definition: str, text: str) -> None:
         self.data[category][definition][0] = text
+
+    def update_listbox(self, new_order: list, category: str) -> None:
+        """Creates a new dictionary with the dataset with the new order of elements.
+        Used for when the indexes in the listbox changes."""
+        new_list = list()
+        index = 0
+        for text in new_order:
+            new_list.insert(index, (text, self.data[category][text]))
+            index += 1
+        self.data[category] = dict(new_list)
 
     def delete_category(self, category: str) -> bool:
         try:

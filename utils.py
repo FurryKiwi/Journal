@@ -102,4 +102,5 @@ def set_window(root, w, h, title) -> None:
     root.title(title)
     root.geometry('%dx%d+%d+%d' % (w, h, x, y))
     root.resizable(0, 0)
+    root.iconbitmap(ICON_IMG)
     root.focus_set()

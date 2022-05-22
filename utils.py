@@ -54,7 +54,7 @@ def create_pop_up(title: str, root: tk.Tk) -> (tk.Toplevel, tk.Entry):
     top_window = tk.Toplevel(root)
     set_window(top_window, 200, 100, title)
 
-    ttk.Label(top_window, text=f"{title}: ", width=50, font=DEFAULT_FONT).pack(side='top')
+    ttk.Label(top_window, text=f"{title}: ", font=DEFAULT_FONT).pack()
 
     entry = tk.Entry(top_window, validate="key", background=ENTRY_COLOR,
                      validatecommand=(root.register(validate_entry), "%P"), font=DEFAULT_FONT, width=21)
@@ -101,6 +101,6 @@ def set_window(root, w, h, title) -> None:
     y = (hs / 2) - (h / 2)
     root.title(title)
     root.geometry('%dx%d+%d+%d' % (w, h, x, y))
-    root.resizable(0, 0)
     root.iconbitmap(ICON_IMG)
+    root.resizable(0, 0)
     root.focus_set()

@@ -89,39 +89,35 @@ class CustomListBox(tk.Listbox):
         self.ctrl_clicked = False
         i = self.nearest(event.y)
         self.selection = self.selection_includes(i)
-        if self.selection:
-            return 'break'
 
     def toggle_selection(self, event):
         self.ctrl_clicked = True
 
     def move_item(self, source, target):
         if not self.ctrl_clicked:
-            element = self.get(source)
+            item = self.get(source)
             self.delete(source)
-            self.insert(target, element)
+            self.insert(target, item)
 
     def unlock_shifting(self):
         self.shifting = False
 
     def lock_shifting(self):
-        # prevent moving processes from disturbing each other
-        # and prevent scrolling too fast
-        # when dragged to the top/bottom of visible area
         self.shifting = True
 
     def shift_selection(self, event):
         if self.ctrl_clicked:
-            return
+            return "break"
+
         selection = self.curselection()
         if not self.selection or len(selection) == 0:
-            return
+            return "break"
+
+        if self.shifting:
+            return "break"
 
         selection_range = range(min(selection), max(selection))
         current_index = self.nearest(event.y)
-
-        if self.shifting:
-            return
 
         line_height = 15
         bottom_y = self.winfo_height()
@@ -167,34 +163,50 @@ class Layout(tk.Frame):
         self.alert_system = alert_system
         self.alert_system.main_layout = self
 
-        self.tool_frame = ttk.Frame(self.root, width=SCREEN_WIDTH, height=5, relief="ridge", borderwidth=2)
-        self.tool_frame.pack(fill="both", side='top', pady=8, padx=8)
+        parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2)
+        parent_frame.pack(anchor='nw', fill='x', pady=4, padx=4)
 
-        ttk.Button(self.tool_frame, style="Accent.TButton", text="Add Category", width=24,
-                   command=lambda: self.create_view(state="acategory")).pack(side='left', anchor='w', padx=8, pady=8)
+        self.category_frame = ttk.Frame(parent_frame, height=5)
+        self.category_frame.pack(side='left', anchor='w')
 
-        tk.Label(self.tool_frame, text="Alerts:", font=DEFAULT_FONT).pack(side='left', anchor='e', pady=4, padx=4)
+        self.tool_frame = ttk.Frame(parent_frame, height=5)
+        self.tool_frame.pack(side='right', anchor='e')
 
-        tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='right',
-                                                                                                          anchor='e',
-                                                                                                          padx=4,
-                                                                                                          pady=4)
-
-        # Label frame
-        label_frame = ttk.Frame(self.root, width=50,
-                                height=SCREEN_HEIGHT, relief="ridge", borderwidth=2)
-        label_frame.pack(fill='both', side='left', padx=8, pady=8)
-
-        tk.Label(label_frame, text="Categories:", font=DEFAULT_FONT).pack()
+        tk.Label(self.category_frame, text="Select Category:", font=DEFAULT_FONT).grid(row=0, column=0)
 
         # Create the drop-down category
-        self.category_box = ttk.Combobox(label_frame, values=self.data_handler.get_categories_by_list(),
+        self.category_box = ttk.Combobox(self.category_frame, values=self.data_handler.get_categories_by_list(),
                                          font=DEFAULT_FONT, state="readonly")
-        self.category_box.pack(side='top', pady=4, padx=4)
+        self.category_box.grid(row=1, column=0, padx=4, pady=4)
         self.category_box.current(0)
 
+        tk.Label(self.category_frame, text="Alerts:", font=DEFAULT_FONT).grid(row=0, column=1, rowspan=2)
+
+        tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='left',
+                                                                                                          anchor='e',
+                                                                                                          padx=4)
+
+        # listbox frame
+        listbox_frame = ttk.Frame(self.root, width=50,
+                                  height=SCREEN_HEIGHT, relief="ridge", borderwidth=2)
+        listbox_frame.pack(fill='both', side='left', padx=8, pady=8)
+
+        tk.Label(listbox_frame, text="Add Definitions:", font=DEFAULT_FONT).pack()
+
+        # Create the entry and button to add definitions
+        self.def_entry = tk.Entry(listbox_frame, validate="key",
+                                  validatecommand=(self.root.register(utils.validate_entry), "%P"), font=DEFAULT_FONT,
+                                  width=21, background=ENTRY_COLOR)
+        self.def_entry.pack(pady=4)
+
+        self.add_definition_btn = ttk.Button(listbox_frame, style="Accent.TButton", text="Add Definition", width=24,
+                                             command=lambda: self.add_definition(
+                                                 self.def_entry.get(),
+                                                 self.category_box.get()))
+        self.add_definition_btn.pack(side='top', padx=4, pady=4)
+
         # Create the listbox to display all the definitions
-        self.list_box = CustomListBox(label_frame, width=20, height=SCREEN_HEIGHT, font=DEFAULT_FONT,
+        self.list_box = CustomListBox(listbox_frame, width=20, height=100, font=DEFAULT_FONT,
                                       activestyle=tk.DOTBOX, data_handler=self.data_handler,
                                       category=self.category_box.current(0))
         self.list_box.pack(side='top', fill='both', expand=True, pady=4, padx=4)
@@ -206,18 +218,6 @@ class Layout(tk.Frame):
         def_scroll_bar.config(command=self.list_box.yview)
 
         self.list_box.config(yscrollcommand=def_scroll_bar.set)
-
-        # Create the entry and button to add definitions
-        self.def_entry = tk.Entry(label_frame, validate="key",
-                                  validatecommand=(self.root.register(utils.validate_entry), "%P"), font=DEFAULT_FONT,
-                                  width=21, background=ENTRY_COLOR)
-        self.def_entry.pack(pady=4)
-
-        self.add_definition_btn = ttk.Button(label_frame, style="Accent.TButton", text="Add Definition", width=24,
-                                             command=lambda: self.add_definition(
-                                                 self.def_entry.get(),
-                                                 self.category_box.get()))
-        self.add_definition_btn.pack(padx=4, pady=4)
 
         self.notebook = CustomNotebook(self.root, data_handler=self.data_handler, alert_system=self.alert_system,
                                        width=SCREEN_WIDTH, height=SCREEN_HEIGHT)

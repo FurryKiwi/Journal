@@ -41,6 +41,7 @@ class Journal:
         root.config(menu=menubar)
         filemenu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=filemenu)
+        filemenu.add_command(label="Add Category", command=lambda: self.main_layout.create_view(state="acategory"))
         filemenu.add_command(label="Clear Database", command=self._on_clearing)
         filemenu.add_command(label="Back Up/Restore",
                              command=lambda: self.data_handler.create_backup_view(self.root, self.main_layout))

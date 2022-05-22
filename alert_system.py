@@ -24,15 +24,15 @@ class AlertSystem:
         if not self.shown:
             try:
                 message, color = self.queue.pop()
-                label = tk.Label(self.main_layout.tool_frame, text=message, fg=color, font=DEFAULT_FONT)
-                label.pack(side='left', anchor='w', padx=4, pady=4)
+                label = tk.Label(self.main_layout.category_frame, text=message, fg=color, font=DEFAULT_FONT)
+                label.grid(row=0, column=2, rowspan=2)
                 self.shown = True
                 self.after_id = self.root.after(2000, lambda: self.clear_canvas(label))
             except IndexError:
                 return
 
     def clear_canvas(self, label):
-        label.pack_forget()
+        label.grid_forget()
         del label
         self.shown = False
         self.show_alert()

@@ -224,12 +224,12 @@ class DataHandler:
 
     def add_definition(self, entry: str, category: str, definition: str) -> bool:
         """Adds/Renames a definition in the data for the current user."""
-        if entry == '':
-            return False
-        # Check if adding a definition that exists
-        if entry in self.data[category]:
-            return False
         try:
+            if entry == '':
+                return False
+            # Check if adding a definition that exists
+            if entry in self.data[category]:
+                return False
             if definition in self.data[category]:
                 # If renaming an existing definition
                 index = list(self.data[category].keys()).index(definition)

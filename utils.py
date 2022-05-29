@@ -40,7 +40,7 @@ def read_json(filename, database: bool) -> dict:
 def create_json(filename, database: bool) -> dict:
     """Creates the json file if it doesn't exist."""
     if database:
-        new_data = {"current": "", "signed_in": "", "users": []}
+        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit":4, "users": []}
     else:
         new_data = {"users": []}
     with open(filename, 'w') as file:
@@ -49,7 +49,7 @@ def create_json(filename, database: bool) -> dict:
         return new_data
 
 
-def create_pop_up(title: str, root: tk.Tk) -> (tk.Toplevel, tk.Entry):
+def create_pop_up(title: str, root: tk.Tk, entry_limit: int) -> (tk.Toplevel, tk.Entry):
     """Creates a top level window for renaming definitions/categories and adding new categories."""
     top_window = tk.Toplevel(root)
     set_window(top_window, 200, 100, title)
@@ -57,7 +57,8 @@ def create_pop_up(title: str, root: tk.Tk) -> (tk.Toplevel, tk.Entry):
     ttk.Label(top_window, text=f"{title}: ", font=DEFAULT_FONT).pack()
 
     entry = tk.Entry(top_window, validate="key", background=ENTRY_COLOR,
-                     validatecommand=(root.register(validate_entry), "%P"), font=DEFAULT_FONT, width=21)
+                     validatecommand=(root.register(lambda event: validate_entry(event, entry_limit)), "%P"),
+                     font=DEFAULT_FONT, width=21)
     entry.pack(side='top', padx=4, pady=4)
 
     entry.focus_set()
@@ -65,7 +66,7 @@ def create_pop_up(title: str, root: tk.Tk) -> (tk.Toplevel, tk.Entry):
     return top_window, entry
 
 
-def validate_entry(entry):
+def validate_entry(entry, limit):
     # valid percent substitutions (from the Tk entry man page)
     # note: you only have to register the ones you need; this
     # example registers them all for illustrative purposes
@@ -79,7 +80,7 @@ def validate_entry(entry):
     # %V = the type of validation that triggered the callback
     #      (key, focusin, focusout, forced)
     # %W = the tk name of the widget
-    if len(entry) <= ENTRY_LIMIT:
+    if len(entry) <= limit:
         return True
     else:
         return False
@@ -104,3 +105,17 @@ def set_window(root, w, h, title) -> None:
     root.iconbitmap(ICON_IMG)
     root.resizable(0, 0)
     root.focus_set()
+
+
+def string_search(word: str, data: list) -> list:
+    if word == '':
+        return []
+    word_case_fold = word.casefold()
+    word_capital = word.capitalize()
+
+    wo = filter(lambda a: word in a, data)
+    w_case = filter(lambda a: word_case_fold in a, data)
+    wc = filter(lambda a: word_capital in a, data)
+
+    words = list(wo) + list(w_case) + list(wc)
+    return list(set(words))

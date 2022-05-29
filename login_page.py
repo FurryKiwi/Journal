@@ -11,7 +11,6 @@ from settings import *
 
 
 class LoginPage(ttk.Notebook):
-
     _tcl_path = TCL_PATH
 
     def __init__(self, journal, data_handler, *args, **kwargs):
@@ -74,7 +73,9 @@ class LoginPage(ttk.Notebook):
         pass_label.pack(pady=8)
 
         self.password_login = tk.Entry(login_frame, validate="key",
-                                       validatecommand=(self.root.register(utils.validate_entry), "%P"), width=25,
+                                       validatecommand=(self.root.register(
+                                           lambda event: utils.validate_entry(event, self.data_handler.entry_limit)),
+                                                        "%P"), width=25,
                                        font=DEFAULT_FONT, background=ENTRY_COLOR, show="*")
         self.password_login.pack()
 
@@ -105,7 +106,10 @@ class LoginPage(ttk.Notebook):
         user_label.pack(pady=8)
 
         self.signup_user = tk.Entry(signup_frame, validate="key",
-                                    validatecommand=(self.root.register(utils.validate_entry), "%P"), width=25,
+                                    validatecommand=(self.root.register(
+                                        lambda event: utils.validate_entry(event, self.data_handler.entry_limit)),
+                                                     "%P"),
+                                    width=25,
                                     font=DEFAULT_FONT, background=ENTRY_COLOR)
         self.signup_user.pack()
 
@@ -113,7 +117,9 @@ class LoginPage(ttk.Notebook):
         pass_label.pack(pady=8)
 
         self.signup_password = tk.Entry(signup_frame, validate="key",
-                                        validatecommand=(self.root.register(utils.validate_entry), "%P"), width=25,
+                                        validatecommand=(self.root.register(
+                                            lambda event: utils.validate_entry(event, self.data_handler.entry_limit)),
+                                                         "%P"), width=25,
                                         font=DEFAULT_FONT, background=ENTRY_COLOR, show="*")
         self.signup_password.pack()
 
@@ -137,14 +143,18 @@ class LoginPage(ttk.Notebook):
         tk.Label(reset_page, text="Enter new username:", font=DEFAULT_FONT_BOLD).pack(pady=8)
 
         self.reset_user_entry = tk.Entry(reset_page, validate="key",
-                                         validatecommand=(self.root.register(utils.validate_entry), "%P"), width=25,
+                                         validatecommand=(self.root.register(
+                                             lambda event: utils.validate_entry(event, self.data_handler.entry_limit)),
+                                                          "%P"), width=25,
                                          font=DEFAULT_FONT, background=ENTRY_COLOR)
         self.reset_user_entry.pack()
 
         tk.Label(reset_page, text="Enter new password:", font=DEFAULT_FONT_BOLD).pack(pady=8)
 
         self.reset_entry = tk.Entry(reset_page, validate="key",
-                                    validatecommand=(self.root.register(utils.validate_entry), "%P"), width=25,
+                                    validatecommand=(self.root.register(
+                                        lambda event: utils.validate_entry(event, self.data_handler.entry_limit)),
+                                                     "%P"), width=25,
                                     font=DEFAULT_FONT, background=ENTRY_COLOR)
         self.reset_entry.pack(pady=8)
 

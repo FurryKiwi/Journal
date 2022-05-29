@@ -25,9 +25,9 @@ class AlertSystem:
             try:
                 message, color = self.queue.pop()
                 label = tk.Label(self.main_layout.category_frame, text=message, fg=color, font=DEFAULT_FONT)
-                label.grid(row=0, column=2, rowspan=2)
+                label.grid(row=1, column=2, columnspan=2)
                 self.shown = True
-                self.after_id = self.root.after(2000, lambda: self.clear_canvas(label))
+                self.after_id = self.root.after(800, lambda: self.clear_canvas(label))
             except IndexError:
                 return
 

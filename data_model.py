@@ -24,6 +24,8 @@ class DataHandler:
         self.raw_data = {}
         self.current_user = None
         self.signed_in = None
+        self.entry_limit = None
+        self.tab_limit = None
 
         self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
 
@@ -45,6 +47,8 @@ class DataHandler:
             self.signed_in = self.raw_data['signed_in']
         else:
             self.signed_in = ''
+        self.entry_limit = self.raw_data['entry_limit']
+        self.tab_limit = self.raw_data['tab_limit']
 
     def _setup_user_data(self, user: str) -> None:
         """Sets the self_data for the current user from the database."""
@@ -62,6 +66,8 @@ class DataHandler:
                     d["data"] = self.data
         self.raw_data['current'] = self.current_user
         self.raw_data['signed_in'] = self.signed_in
+        self.raw_data['entry_limit'] = self.entry_limit
+        self.raw_data['tab_limit'] = self.tab_limit
         utils.dump_json(self._save_path, self.raw_data)
 
     # Back up Functions
@@ -93,7 +99,6 @@ class DataHandler:
 
     def start_auto_backup(self, time_frame: str) -> None:
         """Calls the auto backup function."""
-        # TODO: Create a dictionary for the milliseconds keys and values
         milliseconds = 30000
         if time_frame == "30":
             milliseconds = 30000
@@ -244,6 +249,16 @@ class DataHandler:
                 return True
         except KeyError:
             return False
+
+    def paste_definition(self, category: str, definition: str, text: str) -> bool:
+        if definition == '':
+            return False
+        # Check if adding a definition that exists
+        if definition in self.data[category]:
+            return False
+        else:
+            self.data[category].update({definition: [text, get_timestamp()]})
+            return True
 
     def add_text(self, category: str, definition: str, text: str) -> None:
         self.data[category][definition][0] = text

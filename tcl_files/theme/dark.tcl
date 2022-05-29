@@ -62,10 +62,15 @@ namespace eval ttk::theme::azure-dark {
             }
         }
 
-
         ttk::style layout Vertical.TScrollbar {
             Vertical.Scrollbar.trough -sticky ns -children {
                 Vertical.Scrollbar.thumb -expand true
+            }
+        }
+
+        ttk::style layout Horizontal.TScrollbar {
+            Horizontal.Scrollbar.trough -sticky ew -children {
+                Horizontal.Scrollbar.thumb -expand true
             }
         }
 
@@ -131,7 +136,7 @@ namespace eval ttk::theme::azure-dark {
             ] -width 15 -sticky e
 
         # AccentButton
-        ttk::style configure Accent.TButton -padding {8 4 8 4} -width -10 -anchor center
+        ttk::style configure Accent.TButton -padding {8 2 8 4} -width -10 -anchor center
 
         ttk::style element create AccentButton.button image \
             [list $I(rect-accent) \
@@ -140,7 +145,7 @@ namespace eval ttk::theme::azure-dark {
                 pressed $I(rect-accent) \
                 selected $I(rect-accent) \
                 active $I(rect-accent-hover) \
-            ] -border 4 -sticky ewns
+            ] -border 3 -sticky ewns
 
         # Checkbutton
         ttk::style configure TCheckbutton -padding 4
@@ -171,6 +176,16 @@ namespace eval ttk::theme::azure-dark {
                 active $I(vert-hover) \
             ] -sticky ns
 
+        ttk::style element create Horizontal.Scrollbar.trough image $I(hor-basic) \
+            -sticky ew
+
+        ttk::style element create Horizontal.Scrollbar.thumb \
+             image [list $I(hor-accent) \
+                disabled $I(hor-basic) \
+                pressed $I(hor-hover) \
+                active $I(hor-hover) \
+            ] -sticky ew
+
         # Entry
         ttk::style element create Entry.field \
             image [list $I(box-basic) \
@@ -179,7 +194,7 @@ namespace eval ttk::theme::azure-dark {
                 disabled $I(box-basic) \
                 focus $I(box-accent) \
                 hover $I(box-hover) \
-            ] -border 5 -padding {8} -sticky news
+            ] -border 5 -padding {0} -sticky news
 
         # Combobox
         ttk::style map TCombobox -selectbackground [list \
@@ -207,14 +222,14 @@ namespace eval ttk::theme::azure-dark {
                 disabled $I(box-basic) \
                 focus $I(box-accent) \
                 hover $I(box-hover) \
-            ] -border 5 -padding {8}
+            ] -border 3 -padding {8 6 8 4}
             
         ttk::style element create Combobox.button \
             image [list $I(combo-button-blue) \
-                 {!readonly focus hover} $I(combo-button-blue) \
-                 {readonly focus} $I(combo-button-blue-hover) \
+                 {readonly focus hover} $I(combo-button-blue-hover) \
+                 {readonly focus} $I(combo-button-blue) \
                  {readonly hover} $I(combo-button-blue-hover)
-            ] -border 5 -padding {2 6 6 6}
+            ] -border 4 -padding {0 6 6 6}
 
         ttk::style element create Combobox.arrow image $I(down) \
             -width 5 -sticky e

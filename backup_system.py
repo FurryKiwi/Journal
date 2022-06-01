@@ -58,6 +58,7 @@ class BackUpView:
         if tk.messagebox.askyesno("Restore", "Are you sure you want to restore?"):
             check = self.data_handler.restore_backup()
             if check:
+                self.main_layout.notebook.close_tabs(clearing=True)
                 self.main_layout.update_categories()
                 self.main_layout.set_category_list()
                 self.main_layout.update_list()

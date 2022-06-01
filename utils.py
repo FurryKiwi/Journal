@@ -40,7 +40,8 @@ def read_json(filename, database: bool) -> dict:
 def create_json(filename, database: bool) -> dict:
     """Creates the json file if it doesn't exist."""
     if database:
-        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit":4, "users": []}
+        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit": 4,
+                    "users": []}
     else:
         new_data = {"users": []}
     with open(filename, 'w') as file:

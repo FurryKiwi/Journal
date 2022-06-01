@@ -188,7 +188,8 @@ class TabArea(tk.Frame):
         self.font_choices.current(6)
         self.font_choices.bind("<<ComboboxSelected>>",
                                lambda event=None: self.change_font(self.font_choices.get(),
-                                                                   self.font_size_choices.get()))
+                                                                   self.font_size_choices.get(), category,
+                                                                   definition))
 
         self.font_size_choices = ttk.Combobox(top_frame, values=self._font_sizes, width=3,
                                               font=DEFAULT_FONT, state="readonly")
@@ -196,11 +197,13 @@ class TabArea(tk.Frame):
         self.font_size_choices.current(0)
         self.font_size_choices.bind("<<ComboboxSelected>>",
                                     lambda event=None: self.change_font(self.font_choices.get(),
-                                                                        self.font_size_choices.get()))
+                                                                        self.font_size_choices.get(), category,
+                                                                        definition))
 
         # Create the text area
         self.text_area = TextArea(text_frame, self.data_handler, self.alert_system, category, definition,
-                                  font=self.get_current_font(), padx=2, spacing3=2, wrap=tk.WORD, undo=True)
+                                  font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
+                                  undo=True)
 
         # Bottom Frame layout
         label = ttk.Label(bottom_frame,
@@ -220,20 +223,34 @@ class TabArea(tk.Frame):
                             lambda event=None: self.notebook.close_tabs(self.notebook.get_tab_frames([definition]),
                                                                         save=True))
 
+        self.set_combobox(category, definition)
+
     def save_text(self, category: str, definition: str, text: str) -> None:
         """Save the entered text to the database."""
         self.data_handler.add_text(category, definition, text)
         self.data_handler.update_json()
         self.alert_system.show_alert(("Entry has been saved.", "white"))
 
-    def get_current_font(self):
-        return self.font_choices.get(), int(self.font_size_choices.get())
+    def get_current_font(self, category, definition):
+        return self.data_handler.get_tab_font(category, definition)
 
-    def change_font(self, font: str, size: str):
+    def change_font(self, font: str, size: str, category, definition):
         new_font = font, int(size)
         self.text_area.config(font=new_font)
         self.font_size_choices.selection_clear()
         self.font_choices.selection_clear()
+        self.data_handler.set_tab_font(category, definition, new_font)
+
+    def set_combobox(self, category, definition):
+        fonts = self.font_choices['values']
+        sizes = self.font_size_choices['values']
+        f, s = self.data_handler.get_tab_font(category, definition)
+        for index, i_d in enumerate(fonts):
+            if i_d == f:
+                self.font_choices.current(index)
+        for index, i_d in enumerate(sizes):
+            if i_d == str(s):
+                self.font_size_choices.current(index)
 
 
 class CustomListBox(tk.Listbox):
@@ -349,7 +366,8 @@ class SearchEngine:
             self.search_frame.grid(row=0, column=2, columnspan=5)
             self.search_entry = tk.Entry(self.search_frame, width=21, font=DEFAULT_FONT, validate="key",
                                          background=ENTRY_COLOR, validatecommand=(self.root.register(
-                    lambda event: utils.validate_entry(event, self.data_handler.entry_limit)), "%P"))
+                    lambda event: utils.validate_entry
+                    (event, self.data_handler.entry_limit)), "%P"))
             self.search_entry.pack(side='left', padx=4)
             self.search_entry.bind("<Return>", lambda event=None: self.search_set_listbox(self.search_entry.get()))
             ttk.Button(self.search_frame, style="Accent.TButton", text="Search", width=6,
@@ -395,6 +413,7 @@ class Layout(tk.Frame):
         self.alert_system.main_layout = self
         self.copied_definition = None
         self.copied_text = None
+        self.copied_font = None
 
         self.parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=25)
         self.parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
@@ -586,12 +605,14 @@ class Layout(tk.Frame):
         self.category_box.bind("<ButtonPress-3>", lambda event=None: self.pop_up_menu(event))
 
     def copy_definition(self, entry, index) -> None:
-        check = entry.get(index)
-        self.copied_definition = check
+        self.copied_definition = entry.get(index)
         self.copied_text = self.data_handler.get_text_by_definition(self.category_box.get(), self.copied_definition)
+        self.copied_font = self.data_handler.get_tab_font(self.category_box.get(), self.copied_definition)
+        self.alert_system.show_alert(("Copied definition.", "white"))
 
     def paste_definition(self):
-        check = self.data_handler.paste_definition(self.category_box.get(), self.copied_definition, self.copied_text)
+        check = self.data_handler.paste_definition(self.category_box.get(), self.copied_definition, self.copied_text,
+                                                   self.copied_font)
         if check:
             self.update_list()
         else:
@@ -728,6 +749,7 @@ class CustomNotebook(ttk.Notebook):
             # Other-wise sets the focused on the specified definition user is trying to open again
             else:
                 self.set_tab(definition)
+                self.alert_system.show_alert(("Can't open multiple tabs with the same name.", "red"))
         else:
             # If tab limit is executed, focus will be set to specified tab.
             if definition in self.frames:

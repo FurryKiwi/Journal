@@ -26,6 +26,7 @@ class DataHandler:
         self.signed_in = None
         self.entry_limit = None
         self.tab_limit = None
+        self.tab_font = None
 
         self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
 
@@ -117,6 +118,7 @@ class DataHandler:
         Returns True if created successfully, otherwise False"""
         if new_user == '':
             return False
+        new_user = self.strip_whitespace(new_user)
         user, pw = self.get_credentials(new_user)
 
         if new_user not in user:
@@ -208,9 +210,12 @@ class DataHandler:
         """Adds/Renames a category in the data for the current user."""
         if entry == '':
             return False
+        if entry.isspace():
+            return False
         # Check if adding a category to an existing category
         if entry in self.data.keys():
             return False
+        entry = self.strip_whitespace(entry)
         try:
             if category in self.data.keys():
                 # If renaming a category
@@ -227,14 +232,23 @@ class DataHandler:
         except KeyError:
             return False
 
+    @staticmethod
+    def strip_whitespace(entry: str) -> str:
+        entry = entry.rstrip()
+        entry = entry.lstrip()
+        return entry
+
     def add_definition(self, entry: str, category: str, definition: str) -> bool:
         """Adds/Renames a definition in the data for the current user."""
+        if entry == '':
+            return False
+        if entry.isspace():
+            return False
+        # Check if adding a definition that exists
+        if entry in self.data[category]:
+            return False
+        entry = self.strip_whitespace(entry)
         try:
-            if entry == '':
-                return False
-            # Check if adding a definition that exists
-            if entry in self.data[category]:
-                return False
             if definition in self.data[category]:
                 # If renaming an existing definition
                 index = list(self.data[category].keys()).index(definition)
@@ -245,23 +259,30 @@ class DataHandler:
                 return True
             else:
                 # Add new definition
-                self.data[category].update({entry: ["", get_timestamp()]})
+                self.data[category].update({entry: ["", get_timestamp(), self.get_default_font()]})
                 return True
         except KeyError:
             return False
 
-    def paste_definition(self, category: str, definition: str, text: str) -> bool:
+    @staticmethod
+    def get_default_font():
+        return "Arial", 12
+
+    def paste_definition(self, category: str, definition: str, text: str, font: tuple) -> bool:
         if definition == '':
             return False
         # Check if adding a definition that exists
         if definition in self.data[category]:
             return False
         else:
-            self.data[category].update({definition: [text, get_timestamp()]})
+            self.data[category].update({definition: [text, get_timestamp(), font]})
             return True
 
     def add_text(self, category: str, definition: str, text: str) -> None:
         self.data[category][definition][0] = text
+
+    def set_tab_font(self, category, definition, font: tuple) -> None:
+        self.data[category][definition][2] = font
 
     def update_listbox(self, new_order: list, category: str) -> None:
         """Creates a new dictionary with the dataset with the new order of elements.
@@ -308,3 +329,6 @@ class DataHandler:
 
     def get_timestamp_by_definition(self, category: str, definition: str) -> str:
         return self.data[category][definition][1]
+
+    def get_tab_font(self, category, definition) -> None:
+        return self.data[category][definition][2]

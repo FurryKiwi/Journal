@@ -54,7 +54,7 @@ class BackUpView:
                                                                                                 padx=15)
 
     def restore_user(self, window: tk.Toplevel) -> None:
-        """Calls the restore function of the current users data and notifies user."""
+        """Calls the restore function of the current user's data."""
         if tk.messagebox.askyesno("Restore", "Are you sure you want to restore?"):
             check = self.data_handler.restore_backup()
             if check:
@@ -94,7 +94,7 @@ class BackUpSystem:
 
     def start_auto_backup(self, user: str, time_frame: int) -> None:
         data = self.data_handler.get_data()
-        # If not data, cancels auto backup, and generates event for notification to grab
+        # If not data, cancels auto backup
         if data == {}:
             self.alert_system.show_alert(("Auto backup could not be set with no data.", "red"))
         else:

@@ -6,6 +6,7 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox
 
+import sys
 import time
 import json
 import os
@@ -87,13 +88,32 @@ def validate_entry(entry, limit):
         return False
 
 
-def get_time():
-    return time.ctime()
+def format_date(date: str) -> str:
+    months = {"01": "Jan",
+              "02": "Feb",
+              "03": "Mar",
+              "04": "Apr",
+              "05": "May",
+              "06": "June",
+              "07": "July",
+              "08": "Aug",
+              "09": "Sept",
+              "10": "Oct",
+              "11": "Nov",
+              "12": "Dec"}
+    date = str(date)  # Convert from datetime object to string
+    month = months[date[5:7]]
+    day = date[8:10]
+    year = date[:4]
+    return month + " " + day + ", " + year
 
 
-def get_current_time(entry):
-    entry.delete(0, len(entry.get()))
-    entry.insert(0, time.strftime("%B %d, %Y"))
+def get_current_date() -> tuple:
+    date = time.strftime("%m %d %Y")
+    month = int(date[0:2])
+    day = int(date[3:5])
+    year = int(date[6:])
+    return month, day, year
 
 
 def set_window(root, w, h, title) -> None:
@@ -103,20 +123,9 @@ def set_window(root, w, h, title) -> None:
     y = (hs / 2) - (h / 2)
     root.title(title)
     root.geometry('%dx%d+%d+%d' % (w, h, x, y))
-    root.iconbitmap(ICON_IMG)
+    if sys.platform == "linux":  # To set the icon image, which nothing shows in linux
+        pass
+    else:
+        root.iconbitmap(ICON_IMG)
     root.resizable(0, 0)
     root.focus_set()
-
-
-def string_search(word: str, data: list) -> list:
-    if word == '':
-        return []
-    word_case_fold = word.casefold()
-    word_capital = word.capitalize()
-
-    wo = filter(lambda a: word in a, data)
-    w_case = filter(lambda a: word_case_fold in a, data)
-    wc = filter(lambda a: word_capital in a, data)
-
-    words = list(wo) + list(w_case) + list(wc)
-    return list(set(words))

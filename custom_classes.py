@@ -6,6 +6,7 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox
     import tkinter.font as tkfont
+    from tkcalendar import Calendar
 
 import utils
 from settings import *
@@ -149,10 +150,9 @@ class BackGround(tk.Canvas):
 
 class TextArea(tk.Text):
 
-    def __init__(self, text_frame, data_handler, alert_system, category, definition, *args, **kwargs):
+    def __init__(self, text_frame, data_handler, category, definition, *args, **kwargs):
         tk.Text.__init__(self, text_frame, *args, **kwargs)
         self.data_handler = data_handler
-        self.alert_system = alert_system
 
         self.insert(tk.END, self.data_handler.get_text_by_definition(category, definition))
 
@@ -201,7 +201,7 @@ class TabArea(tk.Frame):
                                                                         definition))
 
         # Create the text area
-        self.text_area = TextArea(text_frame, self.data_handler, self.alert_system, category, definition,
+        self.text_area = TextArea(text_frame, self.data_handler, category, definition,
                                   font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
                                   undo=True)
 
@@ -226,7 +226,6 @@ class TabArea(tk.Frame):
         self.set_combobox(category, definition)
 
     def save_text(self, category: str, definition: str, text: str) -> None:
-        """Save the entered text to the database."""
         self.data_handler.add_text(category, definition, text)
         self.data_handler.update_json()
         self.alert_system.show_alert(("Entry has been saved.", "white"))
@@ -365,9 +364,8 @@ class SearchEngine:
             self.search_frame = ttk.Frame(self.root.category_frame)
             self.search_frame.grid(row=0, column=2, columnspan=5)
             self.search_entry = tk.Entry(self.search_frame, width=21, font=DEFAULT_FONT, validate="key",
-                                         background=ENTRY_COLOR, validatecommand=(self.root.register(
-                    lambda event: utils.validate_entry
-                    (event, self.data_handler.entry_limit)), "%P"))
+                                         background=ENTRY_COLOR, validatecommand=(self.root.register(lambda event:
+                                         utils.validate_entry(event, self.data_handler.entry_limit)), "%P"))
             self.search_entry.pack(side='left', padx=4)
             self.search_entry.bind("<Return>", lambda event=None: self.search_set_listbox(self.search_entry.get()))
             ttk.Button(self.search_frame, style="Accent.TButton", text="Search", width=6,
@@ -388,9 +386,27 @@ class SearchEngine:
             self.packed = False
             self.search_reset()
 
+    @staticmethod
+    def string_search(word: str, data: list) -> list:
+        if word == '':
+            return []
+
+        word = word.lstrip()
+        word = word.rstrip()
+
+        word_case_fold = word.casefold()
+        word_capital = word.capitalize()
+
+        wo = filter(lambda a: word in a, data)
+        w_case = filter(lambda a: word_case_fold in a, data)
+        wc = filter(lambda a: word_capital in a, data)
+
+        words = list(wo) + list(w_case) + list(wc)
+        return list(set(words))
+
     def search_set_listbox(self, word: str) -> None:
         self.root.list_box.lock_selection()
-        new_list = utils.string_search(word, self.data_handler.get_definitions_by_list(self.root.category_box.get()))
+        new_list = self.string_search(word, self.data_handler.get_definitions_by_list(self.root.category_box.get()))
         if len(new_list) > 0:
             self.root.update_list(new_list, search=True)
 
@@ -404,16 +420,16 @@ class SearchEngine:
 
 class Layout(tk.Frame):
 
-    def __init__(self, canvas, journal, data_handler, alert_system, **kwargs):
+    def __init__(self, canvas, data_handler, alert_system, **kwargs):
         tk.Frame.__init__(self, canvas, **kwargs)
         self.root = canvas
-        self.journal = journal
         self.data_handler = data_handler
         self.alert_system = alert_system
         self.alert_system.main_layout = self
         self.copied_definition = None
         self.copied_text = None
         self.copied_font = None
+        self.copied_time_stamp = None
 
         self.parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=25)
         self.parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
@@ -510,6 +526,11 @@ class Layout(tk.Frame):
 
     def add_category(self, entry: str, window: tk.Toplevel, category=None) -> None:
         """Save the category list to database."""
+        # Check if category is getting renamed to close all tabs
+        if category is not None:
+            close_list = self.notebook.get_tab_frames()
+            self.notebook.close_tabs(close_list, save=True)
+
         check = self.data_handler.add_category(entry, category)
         if check:
             window.destroy()
@@ -520,7 +541,7 @@ class Layout(tk.Frame):
 
     def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
-           and closes the toplevel window if opened. Also checks if renaming a definition."""
+           and closes the toplevel window if opened and checks if renaming a definition."""
         # Checks if definition is getting renamed
         if definition is not None:
             close_list = self.notebook.get_tab_frames([definition])
@@ -605,14 +626,18 @@ class Layout(tk.Frame):
         self.category_box.bind("<ButtonPress-3>", lambda event=None: self.pop_up_menu(event))
 
     def copy_definition(self, entry, index) -> None:
+        """Copies the definition, text, font and timestamp from a given definition."""
         self.copied_definition = entry.get(index)
         self.copied_text = self.data_handler.get_text_by_definition(self.category_box.get(), self.copied_definition)
+        self.copied_time_stamp = self.data_handler.get_timestamp_by_definition(self.category_box.get(),
+                                                                               self.copied_definition)
         self.copied_font = self.data_handler.get_tab_font(self.category_box.get(), self.copied_definition)
         self.alert_system.show_alert(("Copied definition.", "white"))
 
     def paste_definition(self):
+        """Pastes the saved definition."""
         check = self.data_handler.paste_definition(self.category_box.get(), self.copied_definition, self.copied_text,
-                                                   self.copied_font)
+                                                   self.copied_time_stamp, self.copied_font)
         if check:
             self.update_list()
         else:
@@ -650,14 +675,33 @@ class Layout(tk.Frame):
         # Definition entry drop down menu
         if isinstance(instance, tk.Entry):
             menu = tk.Menu(self.root, tearoff=0)
-            menu.add_command(label="Add Date", command=lambda: utils.get_current_time(instance))
+            menu.add_command(label="Add Date", command=lambda: self.create_calender(instance))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
                 menu.grab_release()
 
+    def create_calender(self, instance: tk.Entry) -> None:
+        """Creates the calendar in a top window."""
+        top_window = tk.Toplevel(self.root)
+        utils.set_window(top_window, 300, 230, "Calender")
+
+        month, day, year = utils.get_current_date()
+
+        cal = Calendar(top_window, selectmode='day', year=year, month=month, day=day)
+        cal.pack(padx=4, pady=4)
+        ttk.Button(top_window, text="Add Date", width=21, style="Accent.TButton",
+                   command=lambda: self.set_date(instance, cal.selection_get(), top_window)).pack(pady=4, padx=4)
+
+    def set_date(self, instance: tk.Entry, date: str, top_window: tk.Toplevel) -> None:
+        """Sets the selected date from the calendar into the entry widget."""
+        formatted_date = utils.format_date(date)
+        instance.delete(0, len(instance.get()))
+        instance.insert(0, formatted_date)
+        top_window.destroy()
+
     def get_list_box_item(self) -> str:
-        """Returns the selected list box item."""
+        """Returns the selected list-box item if multiple are selected, will return the first one in the index."""
         index = self.list_box.curselection()
         if len(index) > 1:
             for i in index:
@@ -691,7 +735,6 @@ class Layout(tk.Frame):
 class CustomNotebook(ttk.Notebook):
 
     def __init__(self, root, alert_system, data_handler, *args, **kwargs):
-
         kwargs["style"] = "TNotebook"
         ttk.Notebook.__init__(self, root, *args, **kwargs)
         self.root = root
@@ -764,14 +807,15 @@ class CustomNotebook(ttk.Notebook):
     def close_tabs(self, close_list: list = None, save: bool = False, log_out: bool = False,
                    clearing: bool = False) -> None:
         """Closes tabs via keyboard shortcut, exit button, renaming definitions, deleting definitions,
-        deleting categories. Calls the save_text prior to logging out."""
+        deleting categories. Calls the save_text prior to logging out or if manually called, generates a
+        NotebookTabClosed event."""
         if log_out:
             close_list = self.get_tab_frames()
             self.save_text()
         if clearing:
             close_list = self.get_tab_frames()
         if save:
-            self.save_text()
+            self.save_text(close_list)
 
         if close_list is not None:
             self.delete_frames(close_list)
@@ -786,7 +830,7 @@ class CustomNotebook(ttk.Notebook):
             self.root.focus_set()
 
     def delete_frames(self, frames: list) -> None:
-        """Deletes frames from the frame's dict."""
+        """Deletes frames from the self-frames dict."""
         hit_list = []
         for frame in frames:
             for definition, f in self.frames.items():
@@ -803,22 +847,19 @@ class CustomNotebook(ttk.Notebook):
 
     def get_tab_frames(self, temp_list: list = None) -> list:
         """Returns the frames of the opened tabs in the notebook."""
-        # Returns a list of the frames
-        active_tabs = self.frames
-
-        if active_tabs == {}:
+        if self.frames == {}:
             return []
 
         close_list = []
-        # If given a list of definitions, will return only the id's of those given
+        # If given a list of definitions, will return only the frames of those given
         if temp_list:
             for i in temp_list:
-                for text, frame in active_tabs.items():
+                for text, frame in self.frames.items():
                     if i == text:
                         close_list.append(frame)
         else:
             # Returns all opened tabs
-            for text, frame in active_tabs.items():
+            for text, frame in self.frames.items():
                 close_list.append(frame)
         return close_list
 
@@ -828,18 +869,12 @@ class CustomNotebook(ttk.Notebook):
         self.pack(pady=2, padx=2, expand=True, fill='both')
         self.packed = True
 
-    def save_text(self, definition: str = None) -> None:
+    def save_text(self, save_list: list = None) -> None:
         """Invokes the save text function for closing tabs."""
-        # If definition is specified it's called from renaming the tab.
-        if definition:
-            delete_frame = None
-            for text, frame in self.frames.items():
-                if definition == text:
-                    frame.save_btn.invoke()
-                    delete_frame = text
-            del self.frames[delete_frame]
+        if save_list:
+            for frame in save_list:
+                frame.save_btn.invoke()
         else:
-            # Used for closing all the tabs to save all data
             for frame in self.frames.values():
                 frame.save_btn.invoke()
 
@@ -851,7 +886,7 @@ class CustomNotebook(ttk.Notebook):
             self.packed = False
             self.frames = {}
 
-    def on_close_press(self, event) -> str:
+    def on_close_press(self, event) -> None:
         """Called when the button is pressed over the close button"""
         element = self.identify(event.x, event.y)
 
@@ -859,7 +894,7 @@ class CustomNotebook(ttk.Notebook):
             index = self.index("@%d,%d" % (event.x, event.y))
             self.state(['pressed'])
             self._active = index
-            return "break"
+            return
 
     def on_close_release(self, event) -> None:
         """Called when the button is released"""

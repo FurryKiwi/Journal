@@ -16,6 +16,9 @@ class DataHandler:
     _current_directory = os.getcwd()
     _directory = "Data"
     _save_path = ""
+    _time_frames = {"30": 30000,
+                    "60": 60000,
+                    "120": 120000}
 
     def __init__(self):
         self.backup_sys = None
@@ -100,13 +103,7 @@ class DataHandler:
 
     def start_auto_backup(self, time_frame: str) -> None:
         """Calls the auto backup function."""
-        milliseconds = 30000
-        if time_frame == "30":
-            milliseconds = 30000
-        elif time_frame == "60":
-            milliseconds = 60000
-        elif time_frame == "120":
-            milliseconds = 120000
+        milliseconds = self._time_frames[time_frame]
         self.backup_sys.start_auto_backup(self.current_user, milliseconds)
 
     def get_data(self) -> dict:
@@ -268,14 +265,14 @@ class DataHandler:
     def get_default_font():
         return "Arial", 12
 
-    def paste_definition(self, category: str, definition: str, text: str, font: tuple) -> bool:
+    def paste_definition(self, category: str, definition: str, text: str, time_stamp: str, font: tuple) -> bool:
         if definition == '':
             return False
         # Check if adding a definition that exists
         if definition in self.data[category]:
             return False
         else:
-            self.data[category].update({definition: [text, get_timestamp(), font]})
+            self.data[category].update({definition: [text, time_stamp, font]})
             return True
 
     def add_text(self, category: str, definition: str, text: str) -> None:

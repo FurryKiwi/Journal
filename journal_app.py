@@ -72,7 +72,6 @@ class Journal:
         settingmenu.add_command(label="Settings", command=lambda: self.create_settings_view())
 
     def event_biding(self) -> None:
-        """Handles all the binding of events to specific widgets."""
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
         self.root.bind("<Control-f>", lambda event=None: self.search_engine.create_view())
 
@@ -104,7 +103,6 @@ class Journal:
             self.main_layout.update_list()
 
     def run(self) -> None:
-        """Runs tkinter main loop and event handling."""
         del self.login_page
         self.root = tk.Tk()
         self.root.tk.call("source", self._tcl_path)
@@ -126,7 +124,7 @@ class Journal:
         self.create_file_menu(self.root)
 
         # Creates the Layout class
-        self.main_layout = Layout(self.canvas, self, self.data_handler, self.alert_system)
+        self.main_layout = Layout(self.canvas, self.data_handler, self.alert_system)
 
         # Create the search engine class
         self.search_engine = SearchEngine(self.main_layout, self.data_handler)

@@ -2,7 +2,6 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 TITLE = "Journal"
 
-BACKGROUND_IMG = "Images/gradient_background.png"
 ICON_IMG = "Images/journal.ico"
 
 # For creating the notebook close button elements

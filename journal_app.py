@@ -51,12 +51,12 @@ class Journal:
         filemenu = tk.Menu(menubar, tearoff=0)
         searchmenu = tk.Menu(menubar, tearoff=0)
         helpmenu = tk.Menu(menubar, tearoff=0)
-        settingmenu = tk.Menu(menubar, tearoff=0)
+        settingsmenu = tk.Menu(menubar, tearoff=0)
 
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Search", menu=searchmenu)
         menubar.add_cascade(label="Help", menu=helpmenu)
-        menubar.add_cascade(label="Settings", menu=settingmenu)
+        menubar.add_cascade(label="Settings", menu=settingsmenu)
 
         filemenu.add_command(label="Add Category", command=lambda: self.main_layout.create_view(state="acategory"))
         filemenu.add_command(label="Clear Database", command=self._on_clearing)
@@ -69,7 +69,7 @@ class Journal:
 
         helpmenu.add_command(label="Documentation", command=lambda: self.create_help_view())
 
-        settingmenu.add_command(label="Settings", command=lambda: self.create_settings_view())
+        settingsmenu.add_command(label="Settings", command=lambda: self.create_settings_view())
 
     def event_biding(self) -> None:
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
@@ -81,7 +81,6 @@ class Journal:
             self.data_handler.update_json()
             self.data_handler.log_out_user()
             self.alert_system.cancel_after()
-            del self.canvas
             self.root.destroy()
             self.create_login_page()
 
@@ -115,7 +114,7 @@ class Journal:
         self.data_handler.create_backup_system(self.root, self.alert_system)
 
         # Set window resizable
-        utils.set_window(self.root, SCREEN_WIDTH, SCREEN_HEIGHT, self.title)
+        utils.set_window(self.root, SCREEN_WIDTH, SCREEN_HEIGHT, self.title, resize=True)
 
         # Creates a background canvas for everything to be drawn to on top
         self.canvas = BackGround(self.root, heigh=SCREEN_HEIGHT, width=SCREEN_WIDTH, highlightthickness=0, bd=0)
@@ -128,6 +127,8 @@ class Journal:
 
         # Create the search engine class
         self.search_engine = SearchEngine(self.main_layout, self.data_handler)
+
+        # self.canvas.addtag_all("all")
 
         # Sets the category to the first one and populates the listbox
         self.main_layout.update_list()

@@ -10,6 +10,8 @@ except ImportError:  # Python 3
 
 import utils
 from settings import *
+from PIL import ImageTk, Image
+import random
 
 
 class SettingSection:
@@ -141,11 +143,30 @@ class HelpSection:
 
 class BackGround(tk.Canvas):
 
+    _bg_image = None
+    _filenames = ["Images/bg-0.jpeg",
+                  "Images/bg-1.jpeg",
+                  "Images/bg-2.jpeg",
+                  "Images/bg-3.jpeg"]
+
     def __init__(self, root, *args, **kwargs):
         tk.Canvas.__init__(self, root, *args, **kwargs)
-        self.background_img = tk.PhotoImage(file=BACKGROUND_IMG)
-        self.create_image(400, 300, image=self.background_img)
+        self.bind("<Configure>", self.on_resize)
+        self._bg_image = random.choice(self._filenames)
+        self.background_img = ImageTk.PhotoImage(file=self._bg_image)
+        self.image = None
+        self.height = self.winfo_reqheight()
+        self.width = self.winfo_reqwidth()
         self.pack(expand=True, fill="both")
+        self.drawn = self.create_image(0, 0, image=self.background_img, anchor='nw')
+
+    def on_resize(self, event):
+        new_size = Image.open(self._bg_image).resize((event.width, event.height), Image.ANTIALIAS)
+
+        bg = ImageTk.PhotoImage(new_size)
+        self.image = bg  # Need this so python doesn't get rid of it before it's drawn to the screen
+
+        self.itemconfig(self.drawn, image=bg)
 
 
 class TextArea(tk.Text):
@@ -206,18 +227,18 @@ class TabArea(tk.Frame):
                                   undo=True)
 
         # Bottom Frame layout
-        label = ttk.Label(bottom_frame,
-                          text=f"Created: {self.data_handler.get_timestamp_by_definition(category, definition)}")
+        time_stamp = ttk.Label(bottom_frame,
+                               text=f"Created: {self.data_handler.get_timestamp_by_definition(category, definition)}")
         self.save_btn = ttk.Button(bottom_frame, text="Save", style="Accent.TButton",
                                    command=lambda: self.save_text(category, definition,
                                                                   self.text_area.get(1.0, "end-1c")))
 
-        label.pack(side="left", pady=4, padx=4)
-        self.save_btn.pack(side="left", pady=6, padx=120)
+        time_stamp.pack(side="left", pady=8, padx=8)
+        self.save_btn.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
         top_frame.pack(side='top', fill='x')
         bottom_frame.pack(side="bottom", fill='x')
-        text_frame.pack(side='top', fill='x')
+        text_frame.pack(side='top', fill='both', expand=True)
 
         self.text_area.bind("<End>",
                             lambda event=None: self.notebook.close_tabs(self.notebook.get_tab_frames([definition]),
@@ -255,7 +276,7 @@ class TabArea(tk.Frame):
 class CustomListBox(tk.Listbox):
 
     def __init__(self, root, data_handler=None, category=None, **kw):
-        kw['selectmode'] = tk.EXTENDED
+        kw['selectmode'] = kw.pop('selectmode')
         tk.Listbox.__init__(self, root, kw)
         self.root = root
         self.data_handler = data_handler
@@ -365,7 +386,10 @@ class SearchEngine:
             self.search_frame.grid(row=0, column=2, columnspan=5)
             self.search_entry = tk.Entry(self.search_frame, width=21, font=DEFAULT_FONT, validate="key",
                                          background=ENTRY_COLOR, validatecommand=(self.root.register(lambda event:
-                                         utils.validate_entry(event, self.data_handler.entry_limit)), "%P"))
+                                                                                                     utils.validate_entry(
+                                                                                                         event,
+                                                                                                         self.data_handler.entry_limit)),
+                                                                                  "%P"))
             self.search_entry.pack(side='left', padx=4)
             self.search_entry.bind("<Return>", lambda event=None: self.search_set_listbox(self.search_entry.get()))
             ttk.Button(self.search_frame, style="Accent.TButton", text="Search", width=6,
@@ -431,14 +455,14 @@ class Layout(tk.Frame):
         self.copied_font = None
         self.copied_time_stamp = None
 
-        self.parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=25)
-        self.parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
+        parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=25)
+        parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
 
-        self.category_frame = ttk.Frame(self.parent_frame)
+        self.category_frame = ttk.Frame(parent_frame)
         self.category_frame.pack(side='left', anchor='w')
 
-        self.tool_frame = ttk.Frame(self.parent_frame)
-        self.tool_frame.pack(side='right', anchor='se')
+        tool_frame = ttk.Frame(parent_frame)
+        tool_frame.pack(side='right', anchor='se')
 
         tk.Label(self.category_frame, text="Select Category:", font=DEFAULT_FONT).grid(row=0, column=0, pady=6)
 
@@ -450,10 +474,10 @@ class Layout(tk.Frame):
 
         tk.Label(self.category_frame, text="Alerts:", font=DEFAULT_FONT).grid(row=1, column=1)
 
-        tk.Label(self.tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='left',
-                                                                                                          anchor='e',
-                                                                                                          padx=4,
-                                                                                                          pady=8)
+        tk.Label(tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='left',
+                                                                                                     anchor='e',
+                                                                                                     padx=4,
+                                                                                                     pady=8)
 
         # listbox frame
         listbox_frame = ttk.Frame(self.root, width=50,
@@ -477,7 +501,7 @@ class Layout(tk.Frame):
         self.add_definition_btn.pack(side='top', padx=4, pady=4)
 
         # Create the listbox to display all the definitions
-        self.list_box = CustomListBox(listbox_frame, font=DEFAULT_FONT,
+        self.list_box = CustomListBox(listbox_frame, font=DEFAULT_FONT, selectmode=tk.EXTENDED,
                                       activestyle=tk.DOTBOX, data_handler=self.data_handler,
                                       category=self.category_box.current(0))
         self.list_box.pack(side='top', fill='both', expand=True, pady=4, padx=4)
@@ -539,6 +563,11 @@ class Layout(tk.Frame):
         else:
             self.alert_system.show_alert(("Could not save category.", "red"))
 
+    @staticmethod
+    def stay_on_top(win):
+        win.lift()
+        win.focus_set()
+
     def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
            and closes the toplevel window if opened and checks if renaming a definition."""
@@ -550,12 +579,15 @@ class Layout(tk.Frame):
         check = self.data_handler.add_definition(entry, category, definition)
         if check:
             self.update_list()
+            if window:
+                window.destroy()
         else:
             self.alert_system.show_alert(("Could not save definition.", "red"))
+            if window:
+                window.after_idle(self.stay_on_top, window)
+
         self.def_entry.delete(0, len(entry))
         self.def_entry.focus_set()
-        if window:
-            window.destroy()
 
     def delete_definition(self, instance: tk.Listbox, index: list) -> None:
         """Deletion of definitions from the given category list."""
@@ -684,16 +716,18 @@ class Layout(tk.Frame):
     def create_calender(self, instance: tk.Entry) -> None:
         """Creates the calendar in a top window."""
         top_window = tk.Toplevel(self.root)
-        utils.set_window(top_window, 300, 230, "Calender")
+        utils.set_window(top_window, 250, 215, "Calender")
 
         month, day, year = utils.get_current_date()
 
-        cal = Calendar(top_window, selectmode='day', year=year, month=month, day=day)
+        cal = Calendar(top_window, showweeknumbers=False, firstweekday='sunday', selectmode='day', year=year,
+                       month=month, day=day)
         cal.pack(padx=4, pady=4)
         ttk.Button(top_window, text="Add Date", width=21, style="Accent.TButton",
-                   command=lambda: self.set_date(instance, cal.selection_get(), top_window)).pack(pady=4, padx=4)
+                   command=lambda: self.add_date(instance, cal.selection_get(), top_window)).pack(pady=4, padx=4)
 
-    def set_date(self, instance: tk.Entry, date: str, top_window: tk.Toplevel) -> None:
+    @staticmethod
+    def add_date(instance: tk.Entry, date: str, top_window: tk.Toplevel) -> None:
         """Sets the selected date from the calendar into the entry widget."""
         formatted_date = utils.format_date(date)
         instance.delete(0, len(instance.get()))
@@ -865,7 +899,7 @@ class CustomNotebook(ttk.Notebook):
 
     def pack_notebook(self) -> None:
         """Packs the frame the notebook is on and the notebook itself."""
-        self.root.pack(pady=8, padx=8)
+        self.root.pack(expand=True, fill='both', pady=8, padx=8)
         self.pack(pady=2, padx=2, expand=True, fill='both')
         self.packed = True
 

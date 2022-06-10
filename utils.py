@@ -116,7 +116,7 @@ def get_current_date() -> tuple:
     return month, day, year
 
 
-def set_window(root, w, h, title) -> None:
+def set_window(root, w, h, title, resize: bool = False) -> None:
     ws = root.winfo_screenwidth()
     hs = root.winfo_screenheight()
     x = (ws / 2) - (w / 2)
@@ -127,5 +127,8 @@ def set_window(root, w, h, title) -> None:
         pass
     else:
         root.iconbitmap(ICON_IMG)
-    root.resizable(0, 0)
+    if resize:
+        root.resizable(1, 1)
+    else:
+        root.resizable(0, 0)
     root.focus_set()

@@ -1,3 +1,5 @@
+# Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
+
 try:
     import Tkinter as tk
     import ttk
@@ -69,10 +71,6 @@ def create_pop_up(title: str, root: tk.Tk, entry_limit: int) -> (tk.Toplevel, tk
 
 
 def validate_entry(entry, limit):
-    # valid percent substitutions (from the Tk entry man page)
-    # note: you only have to register the ones you need; this
-    # example registers them all for illustrative purposes
-    #
     # %d = Type of action (1=insert, 0=delete, -1 for others)
     # %i = index of char string to be inserted/deleted, or -1
     # %P = value of the entry if the edit is allowed

@@ -1,3 +1,5 @@
+# Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
+
 import json
 import os
 import time

@@ -1,3 +1,5 @@
+# Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
+
 try:
     import Tkinter as tk
     import ttk

@@ -130,8 +130,6 @@ class Journal:
         # Create the search engine class
         self.search_engine = SearchEngine(self.main_layout, self.data_handler)
 
-        # self.canvas.addtag_all("all")
-
         # Sets the category to the first one and populates the listbox
         self.main_layout.update_list()
 

@@ -1,5 +1,4 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
-
 try:
     import Tkinter as tk
     import ttk
@@ -8,8 +7,9 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox
     import tkinter.font as tkfont
-    from tkcalendar import Calendar
 
+import calendar
+from custom_calendar import Calendar
 import utils
 from settings import *
 from PIL import ImageTk, Image
@@ -144,7 +144,6 @@ class HelpSection:
 
 
 class BackGround(tk.Canvas):
-
     _bg_image = None
     _filenames = ["Images/bg-0.jpeg",
                   "Images/bg-1.jpeg",
@@ -718,22 +717,19 @@ class Layout(tk.Frame):
     def create_calender(self, instance: tk.Entry) -> None:
         """Creates the calendar in a top window."""
         top_window = tk.Toplevel(self.root)
-        utils.set_window(top_window, 250, 215, "Calender")
+        utils.set_window(top_window, 255, 230, "Calender")
 
-        month, day, year = utils.get_current_date()
-
-        cal = Calendar(top_window, showweeknumbers=False, firstweekday='sunday', selectmode='day', year=year,
-                       month=month, day=day)
-        cal.pack(padx=4, pady=4)
+        cal = Calendar(top_window, firstweekday=calendar.SUNDAY)
+        cal.pack(expand=1, fill='both', padx=4, pady=4)
         ttk.Button(top_window, text="Add Date", width=21, style="Accent.TButton",
-                   command=lambda: self.add_date(instance, cal.selection_get(), top_window)).pack(pady=4, padx=4)
+                   command=lambda: self.add_date(instance, cal.format_date(cal.selection()), top_window)).pack(pady=4,
+                                                                                                               padx=4)
 
     @staticmethod
     def add_date(instance: tk.Entry, date: str, top_window: tk.Toplevel) -> None:
         """Sets the selected date from the calendar into the entry widget."""
-        formatted_date = utils.format_date(date)
         instance.delete(0, len(instance.get()))
-        instance.insert(0, formatted_date)
+        instance.insert(0, date)
         top_window.destroy()
 
     def get_list_box_item(self) -> str:
@@ -777,7 +773,7 @@ class CustomNotebook(ttk.Notebook):
         self.data_handler = data_handler
         self.alert_system = alert_system
 
-        self.style = ttk.Style()
+        self.style = ttk.Style(self.root)
         self.__initialize_custom_style()
 
         self._active = None

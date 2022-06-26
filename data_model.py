@@ -32,6 +32,7 @@ class DataHandler:
         self.entry_limit = None
         self.tab_limit = None
         self.tab_font = None
+        self.default_font = None
 
         self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
 
@@ -55,6 +56,7 @@ class DataHandler:
             self.signed_in = ''
         self.entry_limit = self.raw_data['entry_limit']
         self.tab_limit = self.raw_data['tab_limit']
+        self.default_font = self.raw_data['default_font']
 
     def _setup_user_data(self, user: str) -> None:
         """Sets the self_data for the current user from the database."""
@@ -74,6 +76,7 @@ class DataHandler:
         self.raw_data['signed_in'] = self.signed_in
         self.raw_data['entry_limit'] = self.entry_limit
         self.raw_data['tab_limit'] = self.tab_limit
+        self.raw_data['default_font'] = self.default_font
         utils.dump_json(self._save_path, self.raw_data)
 
     # Back up Functions
@@ -263,9 +266,8 @@ class DataHandler:
         except KeyError:
             return False
 
-    @staticmethod
-    def get_default_font():
-        return "Arial", 12
+    def get_default_font(self):
+        return self.default_font
 
     def paste_definition(self, category: str, definition: str, text: str, time_stamp: str, font: tuple) -> bool:
         if definition == '':
@@ -331,3 +333,6 @@ class DataHandler:
 
     def get_tab_font(self, category, definition) -> None:
         return self.data[category][definition][2]
+
+    def set_font(self, font, size):
+        self.default_font = (font, size)

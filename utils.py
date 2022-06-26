@@ -43,7 +43,7 @@ def read_json(filename, database: bool) -> dict:
 def create_json(filename, database: bool) -> dict:
     """Creates the json file if it doesn't exist."""
     if database:
-        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit": 4,
+        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit": 4, "default_font": ["Arial", 12],
                     "users": []}
     else:
         new_data = {"users": []}
@@ -106,12 +106,25 @@ def format_date(date: str) -> str:
     return month + " " + day + ", " + year
 
 
-def get_current_date() -> tuple:
+def get_current_date() -> str:
+    months = {"01": "Jan",
+              "02": "Feb",
+              "03": "Mar",
+              "04": "Apr",
+              "05": "May",
+              "06": "June",
+              "07": "July",
+              "08": "Aug",
+              "09": "Sept",
+              "10": "Oct",
+              "11": "Nov",
+              "12": "Dec"}
     date = time.strftime("%m %d %Y")
-    month = int(date[0:2])
-    day = int(date[3:5])
-    year = int(date[6:])
-    return month, day, year
+    month = months[date[:2]]
+    day = date[3:5]
+    year = date[6:]
+    cur_date = month + " " + day + ", " + year
+    return cur_date
 
 
 def set_window(root, w, h, title, resize: bool = False) -> None:
@@ -124,7 +137,7 @@ def set_window(root, w, h, title, resize: bool = False) -> None:
     if sys.platform == "linux":  # To set the icon image, which nothing shows in linux
         pass
     else:
-        root.iconbitmap(ICON_IMG)
+        root.iconphoto(True, tk.PhotoImage(file=ICON_IMG_PNG))
     if resize:
         root.resizable(1, 1)
     else:

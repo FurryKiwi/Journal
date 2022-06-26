@@ -1,4 +1,5 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
+
 try:
     import Tkinter as tk
     import ttk
@@ -8,18 +9,22 @@ except ImportError:  # Python 3
     from tkinter import messagebox
     import tkinter.font as tkfont
 
-import calendar
-from custom_calendar import Calendar
-import utils
-from settings import *
 from PIL import ImageTk, Image
 import random
+
+from custom_calendar import Calendar
+from custom_combobox import AutocompleteCombobox
+from custom_listbox import CustomListBox
+from settings import *
+import utils
 
 
 class SettingSection:
     _title = "Settings"
     _entry_limit = [str(x) for x in range(1, 36)]
-    _tab_limit = [str(x) for x in range(1, 5)]
+    _tab_limit = [str(x) for x in range(1, 6)]
+    _supported_fonts = []
+    _font_sizes = [str(x) for x in range(10, 20, 2)]
 
     def __init__(self, root, data_handler):
         self.root = root
@@ -27,27 +32,72 @@ class SettingSection:
         self.window = None
         self.limit_entry = None
         self.tab_entry = None
+        self.font_choices = None
+        self.font_size_choices = None
+        self.save_btn = None
+
+        for i in tkfont.families():
+            self._supported_fonts.append(i)
+
+    def on_closing(self):
+        self.update_database()
+        self.window.destroy()
 
     def create_top_window_view(self):
         self.window = tk.Toplevel(self.root)
         utils.set_window(self.window, 300, 300, self._title)
-        tk.Label(self.window, text="Settings Section", font=DEFAULT_FONT_UNDERLINE_BOLD).pack(side='top')
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        tk.Label(self.window, text="Entry Limit:", font=DEFAULT_FONT).pack(side='left', anchor='nw', pady=4, padx=4)
-        self.limit_entry = ttk.Combobox(self.window, values=self._entry_limit, width=3,
+        top_frame = tk.Frame(self.window)
+        middle_frame = tk.Frame(self.window)
+        middle_2_frame = tk.Frame(self.window)
+        # bottom_frame = tk.Frame(self.window)
+
+        # Title
+        tk.Label(top_frame, text="Settings Section", font=DEFAULT_FONT_UNDERLINE_BOLD).pack(side='top')
+
+        # Entry character limit
+        tk.Label(top_frame, text="Entry Limit:", font=DEFAULT_FONT).pack(side='left', anchor='nw', pady=4, padx=4)
+        self.limit_entry = ttk.Combobox(top_frame, values=self._entry_limit, width=3,
                                         font=DEFAULT_FONT, state="readonly")
         self.limit_entry.pack(side='left', anchor='nw', padx=4, pady=4)
         self.limit_entry.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
 
         self.set_combobox(limit_entry=True)
 
-        tk.Label(self.window, text="Tab Limit:", font=DEFAULT_FONT).pack(side='left', anchor='nw', pady=4, padx=4)
-        self.tab_entry = ttk.Combobox(self.window, values=self._tab_limit, width=3,
+        # Tab limit
+        tk.Label(top_frame, text="Tab Limit:", font=DEFAULT_FONT).pack(side='left', anchor='nw', pady=4, padx=4)
+        self.tab_entry = ttk.Combobox(top_frame, values=self._tab_limit, width=3,
                                       font=DEFAULT_FONT, state="readonly")
         self.tab_entry.pack(side='left', anchor='nw', padx=4, pady=4)
         self.tab_entry.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
 
         self.set_combobox(tab_entry=True)
+
+        # Default fonts
+        tk.Label(middle_frame, text="Font:", font=DEFAULT_FONT).pack(side='left', anchor='nw', padx=4, pady=4)
+        self.font_choices = AutocompleteCombobox(middle_frame, self._supported_fonts,
+                                                 font=DEFAULT_FONT)
+        self.set_combobox(font=True)
+
+        self.font_choices.pack(side='left', anchor='nw', padx=4, pady=4)
+
+        # Default font size
+        tk.Label(middle_2_frame, text="Font Size:", font=DEFAULT_FONT).pack(side='left', anchor='nw', pady=4, padx=4)
+        self.font_size_choices = ttk.Combobox(middle_2_frame, values=self._font_sizes, width=3,
+                                              font=DEFAULT_FONT, state="readonly")
+        self.font_size_choices.pack(side='left', anchor='nw', padx=4, pady=4)
+        self.set_combobox(size=True)
+
+        # Command biding
+        self.font_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
+        self.font_choices.bind("<<FontChange>>", lambda event=None: self.update_database())
+        self.font_size_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
+
+        top_frame.pack(side='top')
+        middle_frame.pack(side='top')
+        middle_2_frame.pack(side='top')
+        # bottom_frame.pack(side='top')
 
     def update_database(self):
         self.data_handler.entry_limit = int(self.limit_entry.get())
@@ -55,7 +105,12 @@ class SettingSection:
         self.data_handler.tab_limit = int(self.tab_entry.get())
         self.tab_entry.selection_clear()
 
-    def set_combobox(self, limit_entry: bool = False, tab_entry: bool = False) -> None:
+        self.data_handler.set_font(self.font_choices.get(), self.font_size_choices.get())
+        self.font_choices.selection_clear()
+        self.font_size_choices.selection_clear()
+
+    def set_combobox(self, limit_entry: bool = False, tab_entry: bool = False,
+                     font: bool = False, size: bool = False) -> None:
         if limit_entry:
             selection = str(self.data_handler.entry_limit)
             temp_list = self.limit_entry['values']
@@ -68,6 +123,18 @@ class SettingSection:
             for index, i_d in enumerate(temp_list):
                 if i_d == selection:
                     self.tab_entry.current(index)
+        if font:
+            selection = str(self.data_handler.default_font[0])
+            temp_list = self.font_choices['values']
+            for index, i_d in enumerate(temp_list):
+                if i_d == selection:
+                    self.font_choices.current(index)
+        if size:
+            selection = str(self.data_handler.default_font[1])
+            temp_list = self.font_size_choices['values']
+            for index, i_d in enumerate(temp_list):
+                if i_d == selection:
+                    self.font_size_choices.current(index)
 
 
 class HelpSection:
@@ -204,19 +271,21 @@ class TabArea(tk.Frame):
         bottom_frame = tk.Frame(self)
 
         # Top frame widgets
-        self.font_choices = ttk.Combobox(top_frame, values=self._supported_fonts,
-                                         font=DEFAULT_FONT, state="readonly")
+        self.font_choices = AutocompleteCombobox(top_frame, self._supported_fonts,
+                                                 font=DEFAULT_FONT)
         self.font_choices.pack(side='left', padx=4, pady=4)
-        self.font_choices.current(6)
         self.font_choices.bind("<<ComboboxSelected>>",
                                lambda event=None: self.change_font(self.font_choices.get(),
                                                                    self.font_size_choices.get(), category,
                                                                    definition))
+        self.font_choices.bind("<<FontChange>>", lambda event=None: self.change_font(self.font_choices.get(),
+                                                                                     self.font_size_choices.get(),
+                                                                                     category,
+                                                                                     definition))
 
         self.font_size_choices = ttk.Combobox(top_frame, values=self._font_sizes, width=3,
                                               font=DEFAULT_FONT, state="readonly")
         self.font_size_choices.pack(side='left', padx=4, pady=4)
-        self.font_size_choices.current(0)
         self.font_size_choices.bind("<<ComboboxSelected>>",
                                     lambda event=None: self.change_font(self.font_choices.get(),
                                                                         self.font_size_choices.get(), category,
@@ -255,14 +324,16 @@ class TabArea(tk.Frame):
     def get_current_font(self, category, definition):
         return self.data_handler.get_tab_font(category, definition)
 
-    def change_font(self, font: str, size: str, category, definition):
+    def change_font(self, font: str, size: str, category: str, definition: str) -> None:
+        """Changes font in the text area, and saves the font to the database."""
         new_font = font, int(size)
         self.text_area.config(font=new_font)
         self.font_size_choices.selection_clear()
         self.font_choices.selection_clear()
         self.data_handler.set_tab_font(category, definition, new_font)
 
-    def set_combobox(self, category, definition):
+    def set_combobox(self, category: str, definition: str) -> None:
+        """Sets the font and size that was last used by that tab."""
         fonts = self.font_choices['values']
         sizes = self.font_size_choices['values']
         f, s = self.data_handler.get_tab_font(category, definition)
@@ -272,104 +343,6 @@ class TabArea(tk.Frame):
         for index, i_d in enumerate(sizes):
             if i_d == str(s):
                 self.font_size_choices.current(index)
-
-
-class CustomListBox(tk.Listbox):
-
-    def __init__(self, root, data_handler=None, category=None, **kw):
-        kw['selectmode'] = kw.pop('selectmode')
-        tk.Listbox.__init__(self, root, kw)
-        self.root = root
-        self.data_handler = data_handler
-        self.category = category
-        self.bind('<Button-1>', self.set_current)
-        self.bind('<Control-1>', self.toggle_selection)
-        self.bind('<B1-Motion>', self.shift_selection)
-        self.selection = False
-        self.shifting = False
-        self.ctrl_clicked = False
-        self.index_lock = False
-        self.unlock_shifting()
-
-    def save_new_order(self):
-        new_list_order = list(self.get(0, tk.END))
-        self.data_handler.update_listbox(new_list_order, self.category)
-
-    def set_current(self, event):
-        self.ctrl_clicked = False
-        i = self.nearest(event.y)
-        self.selection = self.selection_includes(i)
-
-    def toggle_selection(self, event):
-        self.ctrl_clicked = True
-
-    def move_item(self, source, target):
-        if not self.ctrl_clicked:
-            item = self.get(source)
-            self.delete(source)
-            self.insert(target, item)
-
-    def unlock_shifting(self):
-        self.shifting = False
-
-    def lock_shifting(self):
-        self.shifting = True
-
-    def unlock_selection(self):
-        self.index_lock = False
-
-    def lock_selection(self):
-        self.index_lock = True
-
-    def shift_selection(self, event):
-        if self.index_lock:
-            return "break"
-        else:
-            if self.ctrl_clicked:
-                return "break"
-            selection = self.curselection()
-            if not self.selection or len(selection) == 0:
-                return "break"
-
-            if self.shifting:
-                return "break"
-
-            selection_range = range(min(selection), max(selection))
-            current_index = self.nearest(event.y)
-
-            line_height = 5
-            bottom_y = self.winfo_height()
-            if event.y >= bottom_y - line_height:
-                self.lock_shifting()
-                self.see(self.nearest(bottom_y - line_height) + 1)
-                self.root.after(500, self.unlock_shifting)
-            if event.y <= line_height:
-                self.lock_shifting()
-                self.see(self.nearest(line_height) - 1)
-                self.root.after(500, self.unlock_shifting)
-
-            if current_index < min(selection):
-                self.lock_shifting()
-                not_in_index = 0
-                for i in selection_range[::-1]:
-                    if not self.selection_includes(i):
-                        self.move_item(i, max(selection) - not_in_index)
-                        not_in_index += 1
-                current_index = min(selection) - 1
-                self.move_item(current_index, current_index + len(selection))
-                self.save_new_order()
-            elif current_index > max(selection):
-                self.lock_shifting()
-                not_in_index = 0
-                for i in selection_range:
-                    if not self.selection_includes(i):
-                        self.move_item(i, min(selection) + not_in_index)
-                        not_in_index += 1
-                current_index = max(selection) + 1
-                self.move_item(current_index, current_index - len(selection))
-                self.save_new_order()
-            self.unlock_shifting()
-            return "break"
 
 
 class SearchEngine:
@@ -386,11 +359,11 @@ class SearchEngine:
             self.search_frame = ttk.Frame(self.root.category_frame)
             self.search_frame.grid(row=0, column=2, columnspan=5)
             self.search_entry = tk.Entry(self.search_frame, width=21, font=DEFAULT_FONT, validate="key",
-                                         background=ENTRY_COLOR, validatecommand=(self.root.register(lambda event:
-                                                                                                     utils.validate_entry(
-                                                                                                         event,
-                                                                                                         self.data_handler.entry_limit)),
-                                                                                  "%P"))
+                                         background=ENTRY_COLOR,
+                                         validatecommand=(self.root.register(
+                                             lambda event: utils.validate_entry(
+                                                 event, self.data_handler.entry_limit)), "%P"))
+
             self.search_entry.pack(side='left', padx=4)
             self.search_entry.bind("<Return>", lambda event=None: self.search_set_listbox(self.search_entry.get()))
             ttk.Button(self.search_frame, style="Accent.TButton", text="Search", width=6,
@@ -709,6 +682,7 @@ class Layout(tk.Frame):
         if isinstance(instance, tk.Entry):
             menu = tk.Menu(self.root, tearoff=0)
             menu.add_command(label="Add Date", command=lambda: self.create_calender(instance))
+            menu.add_command(label="Add Current Date", command=lambda: self.add_current_date(instance))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -719,11 +693,16 @@ class Layout(tk.Frame):
         top_window = tk.Toplevel(self.root)
         utils.set_window(top_window, 255, 230, "Calender")
 
-        cal = Calendar(top_window, firstweekday=calendar.SUNDAY)
+        cal = Calendar(top_window)
         cal.pack(expand=1, fill='both', padx=4, pady=4)
         ttk.Button(top_window, text="Add Date", width=21, style="Accent.TButton",
                    command=lambda: self.add_date(instance, cal.format_date(cal.selection()), top_window)).pack(pady=4,
                                                                                                                padx=4)
+
+    def add_current_date(self, instance: tk.Entry) -> None:
+        cur_date = utils.get_current_date()
+        instance.delete(0, len(instance.get()))
+        instance.insert(0, cur_date)
 
     @staticmethod
     def add_date(instance: tk.Entry, date: str, top_window: tk.Toplevel) -> None:

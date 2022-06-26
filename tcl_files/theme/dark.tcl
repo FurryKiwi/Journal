@@ -207,36 +207,26 @@ namespace eval ttk::theme::azure-dark {
         # Combobox
         ttk::style map TCombobox -selectbackground [list \
             {!focus} $colors(-selectbg) \
-            {readonly hover} $colors(-selectbg) \
-            {readonly focus} $colors(-selectbg) \
-        ]
-            
-        ttk::style map TCombobox -selectforeground [list \
-            {!focus} $colors(-selectfg) \
-            {readonly hover} $colors(-selectfg) \
-            {readonly focus} $colors(-selectfg) \
+            {hover} $colors(-selectbg) \
+            {focus} $colors(-selectbg) \
         ]
 
         ttk::style element create Combobox.field \
             image [list $I(box-basic) \
-                {readonly disabled} $I(rect-basic) \
-                {readonly pressed} $I(rect-accent) \
-                {readonly focus hover} $I(rect-accent-hover) \
-                {readonly focus} $I(rect-accent) \
-                {readonly hover} $I(rect-accent-hover) \
+                {disabled} $I(rect-basic) \
+                {pressed} $I(rect-accent) \
+                {focus hover} $I(rect-accent-hover) \
+                {focus} $I(rect-accent) \
+                {hover} $I(rect-accent-hover) \
                 {focus hover} $I(rect-accent) \
-                readonly $I(rect-accent) \
-                invalid $I(box-invalid) \
-                disabled $I(box-basic) \
-                focus $I(box-accent) \
-                hover $I(box-hover) \
+                {!focus} $I(rect-accent) \
             ] -border 3 -padding {8 6 8 4}
             
         ttk::style element create Combobox.button \
             image [list $I(combo-button-blue) \
-                 {readonly focus hover} $I(combo-button-blue-hover) \
-                 {readonly focus} $I(combo-button-blue) \
-                 {readonly hover} $I(combo-button-blue-hover)
+                 {focus hover} $I(combo-button-blue-hover) \
+                 {focus} $I(combo-button-blue) \
+                 {hover} $I(combo-button-blue-hover)
             ] -border 4 -padding {0 6 6 6}
 
         ttk::style element create Combobox.arrow image $I(down) \

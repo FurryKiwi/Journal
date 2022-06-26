@@ -59,6 +59,7 @@ class Calendar(ttk.Frame):
 
         self._items = [self._calendar.insert('', 'end', values=[])
                        for _ in range(6)]
+
         self._build_calendar()
 
     def _setup_styles(self):

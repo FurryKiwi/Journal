@@ -8,8 +8,8 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox
 
-import utils
 from settings import *
+import utils
 
 
 class LoginPage(ttk.Notebook):

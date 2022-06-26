@@ -4,7 +4,8 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 TITLE = "Journal"
 
-ICON_IMG = "Images/journal.ico"
+ICON_IMG_ICO = "Images/journal.ico"
+ICON_IMG_PNG = "Images/journal.png"
 
 # For creating the notebook close button elements
 CLOSE_BTN = "Images/close-button.png"

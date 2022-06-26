@@ -105,7 +105,7 @@ class SettingSection:
         self.data_handler.tab_limit = int(self.tab_entry.get())
         self.tab_entry.selection_clear()
 
-        self.data_handler.set_font(self.font_choices.get(), self.font_size_choices.get())
+        self.data_handler.set_font(self.font_choices.get(), int(self.font_size_choices.get()))
         self.font_choices.selection_clear()
         self.font_size_choices.selection_clear()
 
@@ -124,17 +124,31 @@ class SettingSection:
                 if i_d == selection:
                     self.tab_entry.current(index)
         if font:
-            selection = str(self.data_handler.default_font[0])
+            selection = self.data_handler.default_font[0]
             temp_list = self.font_choices['values']
+            _use_default_font = False
+            if selection not in temp_list:
+                _use_default_font = True
             for index, i_d in enumerate(temp_list):
-                if i_d == selection:
-                    self.font_choices.current(index)
+                if _use_default_font:
+                    if i_d == DEFAULT_FONT_TAB:
+                        self.font_choices.current(index)
+                else:
+                    if i_d == selection:
+                        self.font_choices.current(index)
         if size:
             selection = str(self.data_handler.default_font[1])
             temp_list = self.font_size_choices['values']
+            _use_default_size = False
+            if selection not in temp_list:
+                _use_default_size = True
             for index, i_d in enumerate(temp_list):
-                if i_d == selection:
-                    self.font_size_choices.current(index)
+                if _use_default_size:
+                    if i_d == DEFAULT_FONT_SIZE:
+                        self.font_size_choices.current(index)
+                else:
+                    if i_d == selection:
+                        self.font_size_choices.current(index)
 
 
 class HelpSection:
@@ -337,12 +351,27 @@ class TabArea(tk.Frame):
         fonts = self.font_choices['values']
         sizes = self.font_size_choices['values']
         f, s = self.data_handler.get_tab_font(category, definition)
+        print(f, s, type(f), type(s))
+        _use_default_font = False
+        _use_default_size = False
+        if f not in fonts:
+            _use_default_font = True
+        if str(s) not in sizes:
+            _use_default_size = True
         for index, i_d in enumerate(fonts):
-            if i_d == f:
-                self.font_choices.current(index)
+            if _use_default_font:
+                if i_d == DEFAULT_FONT_TAB:
+                    self.font_choices.current(index)
+            else:
+                if i_d == f:
+                    self.font_choices.current(index)
         for index, i_d in enumerate(sizes):
-            if i_d == str(s):
-                self.font_size_choices.current(index)
+            if _use_default_size:
+                if i_d == DEFAULT_FONT_SIZE:
+                    self.font_size_choices.current(index)
+            else:
+                if i_d == str(s):
+                    self.font_size_choices.current(index)
 
 
 class SearchEngine:

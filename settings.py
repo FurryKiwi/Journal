@@ -20,6 +20,8 @@ ENTRY_LIMIT = 20
 ENTRY_COLOR = "#848689"
 
 DEFAULT_FONT = ("Arial", 12)
+DEFAULT_FONT_TAB = "Arial"
+DEFAULT_FONT_SIZE = '12'
 DEFAULT_FONT_UNDERLINE = ("Arial", 12, "underline")
 DEFAULT_FONT_UNDERLINE_BOLD = ("Arial", 14, "underline", "bold")
 DEFAULT_FONT_BOLD = ("Arial", 12, "bold")  # For login page

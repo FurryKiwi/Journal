@@ -7,6 +7,33 @@ TITLE = "Journal"
 ICON_IMG_ICO = "Images/journal.ico"
 ICON_IMG_PNG = "Images/journal.png"
 
+BACKGROUND_IMAGES = {"UnderwaterBubbles": "Images/bg-0.jpeg",
+                     "LakeView": "Images/bg-1.jpeg",
+                     "Lightning": "Images/bg-2.jpeg",
+                     "UnderwaterColors": "Images/bg-3.jpeg",
+                     "Wheat Fields": "Images/bg-4.jpeg",
+                     "Waves": "Images/bg-5.jpeg",
+                     "Snowy Mountains": "Images/bg-6.jpeg",
+                     "Desert": "Images/bg-7.jpeg",
+                     "Mountain Range": "Images/bg-8.jpeg",
+                     "Ocean Coral": "Images/bg-9.jpeg",
+                     "Dolphins": "Images/bg-10.jpeg",
+                     "Winding Road": "Images/bg-11.jpeg",
+                     "Desert Mountain": "Images/bg-12.jpeg"}
+
+MONTHS = {"01": "Jan",
+          "02": "Feb",
+          "03": "Mar",
+          "04": "Apr",
+          "05": "May",
+          "06": "June",
+          "07": "July",
+          "08": "Aug",
+          "09": "Sept",
+          "10": "Oct",
+          "11": "Nov",
+          "12": "Dec"}
+
 # For creating the notebook close button elements
 CLOSE_BTN = "Images/close-button.png"
 CLOSE_BTN_ACTIVE = "Images/close.png"

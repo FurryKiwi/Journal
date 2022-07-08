@@ -15,7 +15,7 @@ class AlertSystem:
 
     def __init__(self, root):
         self.root = root
-        self.main_layout = None
+        self.layout = None
         self.queue = []
         self.shown = False
         self.after_id = ''
@@ -26,8 +26,8 @@ class AlertSystem:
         if not self.shown:
             try:
                 message, color = self.queue.pop()
-                label = tk.Label(self.main_layout.category_frame, text=message, fg=color, font=DEFAULT_FONT)
-                label.grid(row=1, column=2, columnspan=2)
+                label = tk.Label(self.layout.category_frame, text=message, fg=color, font=DEFAULT_FONT)
+                label.grid(row=1, column=4, columnspan=2)
                 self.shown = True
                 self.after_id = self.root.after(800, lambda: self.clear_canvas(label))
             except IndexError:

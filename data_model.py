@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import time
 import utils
 from backup_system import BackUpSystem, BackUpView
@@ -12,11 +13,188 @@ def get_timestamp() -> str:
     return time.strftime('%Y-%m-%d', time.localtime())
 
 
-class DataHandler:
+class LoginHandler:
+    """This handles the creating of user's folder directories, and the main config file for the program. Along with
+    all the functions handling of the signing in and out of the program."""
+    _filename_config = "config.json"
+    _user_config = "config_pref.json"
+    _secret_config = "unknown.json"
+    _current_directory = os.getcwd()
+    _main_dir = "Data"
+    _config_dir = "Config"
+    _main_user_dir = "Users"
+    _config_data = {"current": "", "signed_in": 0}
+    _user_data = {"entry_limit": 20,
+                  "tab_limit": 4,
+                  "last_category": "",
+                  "default_font": ["Arial", 12]}
 
+    def __init__(self, data_handler):
+        self.data_handler = data_handler
+
+        self.last_signed_in = None
+        self.signed_in_btn = None
+        self.entry_limit = 20  # This will be a constant for validating username and password limit
+
+        # CWD/Data/Config/filename
+        self._save_path_config = os.path.join(self._current_directory, self._main_dir, self._config_dir,
+                                              self._filename_config)
+        self._save_path_config_folder = os.path.join(self._current_directory, self._main_dir, self._config_dir)
+        utils.check_folder_and_create(self._save_path_config_folder)
+        # CWD/Data/Users
+        self._users_folder_path = os.path.join(self._current_directory, self._main_dir, self._main_user_dir)
+        utils.check_folder_and_create(self._users_folder_path)
+
+        self._setup_data(utils.read_json(self._save_path_config, self._config_data))
+
+    def get_users(self) -> list[str]:
+        directory = self._users_folder_path
+        dirlist = [item for item in os.listdir(directory) if os.path.isdir(os.path.join(directory, item))]
+        if dirlist:
+            return dirlist
+        else:
+            return ["SignUp"]
+
+    def _setup_data(self, data: dict):
+        self.last_signed_in = data['current']
+        self.signed_in_btn = data['signed_in']
+
+    def create_new_user(self, new_user: str, new_pw: str) -> bool:
+        """Checks if new user already exists, otherwise adds user and pw to the database.
+        Returns True if created successfully, otherwise False"""
+        if new_user == '':
+            return False
+
+        new_user = utils.strip_whitespace(new_user)
+
+        if not utils.check_folder_exists(os.path.join(self._users_folder_path, new_user)):
+            # CWD/Data/Users/Username-folder/config_pref.json
+            save_path_config = os.path.join(self._users_folder_path, new_user, self._user_config)
+            utils.check_folder_and_create(os.path.join(self._users_folder_path, new_user))
+            # CWD/Data/Users/Username-folder/unknown.json
+            secret = os.path.join(self._users_folder_path, new_user, self._secret_config)
+
+            utils.dump_json(secret, {new_user: new_pw})
+            utils.dump_json(save_path_config, self._user_data)
+            return True
+        else:
+            return False
+
+    def validate_login(self, user: str, pw: str, auto: int) -> bool:
+        """Checks if user and pw == database data, returns True, otherwise False."""
+        if user == '' or user == "SignUp":
+            return False
+        u, p = self.get_credentials(user)
+        if user == u and pw == p:
+            self.signed_in_btn = auto
+            self.last_signed_in = user
+            data = {"current": self.last_signed_in, "signed_in": self.signed_in_btn}
+            utils.dump_json(self._save_path_config, data)
+            self.data_handler.setup_database(self.last_signed_in, self.signed_in_btn)
+            return True
+        else:
+            return False
+
+    def reset_password(self, user: str, new_user: str, new_pw: str) -> bool:
+        if new_user == '':
+            return False
+        users = self.get_users()
+        if new_user in users and new_user != user:
+            return False
+        if user == "SignUp":
+            return False
+        user, pw = self.get_credentials(user)
+        # CWD/Data/Users/Username/unknown.json
+        save_path = os.path.join(self._users_folder_path, user, self._secret_config)
+        # CWD/Data/Users/Username
+        folder_path = os.path.join(self._users_folder_path, user)
+        # CWD/Data/Users/NewUsername
+        new_folder_path = os.path.join(self._users_folder_path, new_user)
+        with open(save_path, 'r+') as file:
+            data = json.load(file)
+            data[new_user] = data.pop(user)
+            data[new_user] = new_pw
+        utils.dump_json(save_path, data)
+        # Now to rename the folder
+        os.rename(folder_path, new_folder_path)
+        # Save the main config file
+        self.last_signed_in = ""
+        self.signed_in_btn = 0
+        utils.dump_json(self._save_path_config, self._config_data)
+        return True
+
+    def delete_user(self, user: str) -> bool:
+        if user == '':
+            return False
+        try:
+            users = self.get_users()
+            for u in users:
+                if u == user:
+                    try:
+                        path = os.path.join(self._users_folder_path, user)
+                        shutil.rmtree(path)
+                        self.signed_in_btn = 0
+                        self.last_signed_in = ""
+                        utils.dump_json(self._save_path_config, self._config_data)
+                        return True
+                    except OSError:
+                        return False
+        except KeyError:
+            return False
+
+    def get_credentials(self, user: str) -> tuple:
+        """Returns the selected user and pw from the database for validation."""
+        # CWD/Data/Users/Username/unknown.json
+        save_path = os.path.join(self._users_folder_path, user, self._secret_config)
+
+        with open(save_path, 'r') as file:
+            data = json.load(file)
+        temp = [(u, p) for u, p in data.items()]
+        user, pw = temp[0]
+        return user, pw
+
+
+class Importer:
+    _current_directory = os.getcwd()
+    _directory = "Export"
+
+    def __init__(self):
+        # Still need to finish this. But possibly move to the data_handler class
+        self.import_data = {}
+        # self.import_path = os.path.join(self._current_directory, self._directory, current_user)
+        # self.file_name = "database_exported_" + current_user + ".json"
+        # self.file_path = os.path.join(self.import_path, self.file_name)
+        # if os.path.isdir(self.import_path):
+        #     # self.import_data = utils.read_json(self.file_path, data={})
+        # else:
+        #     self.import_data = {}
+
+    def get_import_data_categories(self) -> list:
+        if self.import_data != {}:
+            return list(self.import_data.keys())
+        return []
+
+    def get_import_data_definitions(self, category: str) -> list:
+        if self.import_data != {}:
+            return list(self.import_data[category].keys())
+        return []
+
+    def get_all_data_formatted(self):
+        data = {}
+        for c in self.import_data.keys():
+            data.update({c: list(self.import_data[c].keys())})
+        return data
+
+
+class DataHandler:
     _filename = "database.json"
     _current_directory = os.getcwd()
+    _export_directory = "Export"
+    _export_folder_path = os.path.join(_current_directory, _export_directory)
     _directory = "Data"
+    _users_directory = "Users"
+    _users_folder_path = os.path.join(_current_directory, _directory, _users_directory)
+    _users_config = "config_pref.json"
     _save_path = ""
     _time_frames = {"30": 30000,
                     "60": 60000,
@@ -26,58 +204,77 @@ class DataHandler:
         self.backup_sys = None
 
         self.data = {}
-        self.raw_data = {}
+        self.config_data = {}
+
         self.current_user = None
         self.signed_in = None
         self.entry_limit = None
         self.tab_limit = None
-        self.tab_font = None
+        self.last_category = None
         self.default_font = None
 
-        self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
-
-        self._setup_database()
+        self._data_save_path = None
+        self._config_save_path = None
 
     # Json data functions
     def clear_data(self) -> None:
         """Clears the current user's data."""
         self.data = {}
 
-    def _setup_database(self) -> None:
+    def setup_database(self, user: str, signed_in: int) -> None:
         """Grabs the saved data from the json file and set's attributes from it."""
-        self.raw_data = utils.read_json(self._save_path, True)
-        if self.raw_data['current']:
-            self.current_user = self.raw_data['current']
-        else:
-            self.current_user = ''
-        if self.raw_data['signed_in']:
-            self.signed_in = self.raw_data['signed_in']
-        else:
-            self.signed_in = ''
-        self.entry_limit = self.raw_data['entry_limit']
-        self.tab_limit = self.raw_data['tab_limit']
-        self.default_font = self.raw_data['default_font']
+        # CWD/Data/Users/Username/config_pref.json
+        self._config_save_path = os.path.join(self._users_folder_path, user, self._users_config)
+        # CWD/Data/Users/Username/database.json
+        self._data_save_path = os.path.join(self._users_folder_path, user, self._filename)
 
-    def _setup_user_data(self, user: str) -> None:
-        """Sets the self_data for the current user from the database."""
+        config_data = utils.read_config(self._config_save_path)
+
         self.current_user = user
-        for d in self.raw_data['users']:
-            for k, v in d.items():
-                if k == self.current_user:
-                    self.data = d['data']
+        self.signed_in = signed_in
+        self.entry_limit = config_data['entry_limit']
+        self.tab_limit = config_data['tab_limit']
+        self.last_category = config_data['last_category']
+        self.default_font = config_data['default_font']
+
+        self.data = utils.read_json(self._data_save_path, data={})
 
     def update_json(self) -> None:
         """Updates the data in the raw_data for the current user."""
-        for d in self.raw_data['users']:
-            for user in d.keys():
-                if user == self.current_user:
-                    d["data"] = self.data
-        self.raw_data['current'] = self.current_user
-        self.raw_data['signed_in'] = self.signed_in
-        self.raw_data['entry_limit'] = self.entry_limit
-        self.raw_data['tab_limit'] = self.tab_limit
-        self.raw_data['default_font'] = self.default_font
-        utils.dump_json(self._save_path, self.raw_data)
+        self.config_data['entry_limit'] = self.entry_limit
+        self.config_data['tab_limit'] = self.tab_limit
+        self.config_data['last_category'] = self.last_category
+        self.config_data['default_font'] = self.default_font
+        utils.dump_json(self._config_save_path, self.config_data)
+        utils.dump_json(self._data_save_path, self.data)
+
+    # Import/Export Functions
+    def combine_data(self):
+        """Imports only the selected data the user wants to import."""
+        print("yes")
+
+    def export_data(self, data: dict):
+        """Exports only the selected data the user wants to export."""
+        export_data = {}
+        for category, definition_list in data.items():
+            for i in definition_list:
+                if category in export_data:
+                    export_data[category].update({i: [self.get_text_by_definition(category, i),
+                                                      self.get_timestamp_by_definition(category, i),
+                                                      self.get_tab_font(category, i)]})
+                else:
+                    export_data.update({category: {
+                        i: [self.get_text_by_definition(category, i), self.get_timestamp_by_definition(category, i),
+                            self.get_tab_font(category, i)]}})
+        export_folder = os.path.join(self._export_folder_path, self.current_user)
+        utils.check_folder_and_create(export_folder)
+        file_name = "database_exported_" + self.current_user.lower() + ".json"
+        export_filepath = os.path.join(export_folder, file_name)
+        try:
+            utils.dump_json(export_filepath, export_data)
+            return True
+        except:
+            return False
 
     # Back up Functions
     def create_backup_system(self, root, alert_system) -> None:
@@ -114,99 +311,6 @@ class DataHandler:
     def get_data(self) -> dict:
         return self.data
 
-    # Login Functions
-    def create_new_user(self, new_user: str, new_pw: str) -> bool:
-        """Checks if new user already exists, otherwise adds user and pw to the database.
-        Returns True if created successfully, otherwise False"""
-        if new_user == '':
-            return False
-        new_user = self.strip_whitespace(new_user)
-        user, pw = self.get_credentials(new_user)
-
-        if new_user not in user:
-            new_data = {"data": {}, new_user: new_pw}
-            with open(self._save_path, 'r+') as file:
-                file_data = json.load(file)
-                file_data['current'] = self.current_user
-                file_data['users'].append(new_data)
-                file.seek(0)
-                json.dump(file_data, file, indent=4)
-                file.truncate()
-            self.raw_data = utils.read_json(self._save_path, True)
-            return True
-        else:
-            return False
-
-    def log_out_user(self) -> None:
-        """Resets the current data used from the previous user and sets back up the database."""
-        self.cancel_backup()
-        self.backup_sys = None
-        self.data = {}
-        self.raw_data = None
-        self._setup_database()
-
-    def validate_login(self, user: str, pw: str, auto: int) -> bool:
-        """Checks if user and pw == database data, returns True, otherwise False."""
-        if user == '':
-            return False
-        u, p = self.get_credentials(user)
-        if user == u and pw == p:
-            self._setup_user_data(user)
-            self.signed_in = auto
-            self.raw_data['signed_in'] = self.signed_in
-            return True
-        else:
-            return False
-
-    def reset_password(self, user: str, new_user: str, new_pw: str) -> bool:
-        if new_user == '':
-            return False
-        for data in self.raw_data['users']:
-            if user in data.keys():
-                data[new_user] = data.pop(user)
-                data[new_user] = new_pw
-                self.raw_data['signed_in'] = 0
-                self.raw_data['current'] = new_user
-                utils.dump_json(self._save_path, self.raw_data)
-                self.raw_data = utils.read_json(self._save_path, True)
-                return True
-        else:
-            return False
-
-    def delete_user(self, user: str) -> bool:
-        if user == '':
-            return False
-        try:
-            for index, data in enumerate(self.raw_data['users']):
-                if user in data.keys():
-                    del self.raw_data['users'][index]
-                    self.raw_data['current'] = ""
-                    utils.dump_json(self._save_path, self.raw_data)
-                    self.raw_data = utils.read_json(self._save_path, True)
-                    return True
-        except KeyError:
-            return False
-
-    def get_users(self) -> list:
-        """Returns all the created users in the database to fill combobox."""
-        if not self.raw_data['users']:
-            return ["SignUp"]
-        else:
-            temp_list = []
-            for data in self.raw_data['users']:
-                for user in data.keys():
-                    if user != "data":
-                        temp_list.append(user)
-            return temp_list
-
-    def get_credentials(self, user: str) -> tuple:
-        """Returns the selected user and pw from the database for validation."""
-        for data in self.raw_data['users']:
-            for users, v in data.items():
-                if user == users:
-                    return users, v
-        return "", ""
-
     # Getting/Setting of data functions
     def add_category(self, entry: str, category: str) -> bool:
         """Adds/Renames a category in the data for the current user."""
@@ -217,7 +321,7 @@ class DataHandler:
         # Check if adding a category to an existing category
         if entry in self.data.keys():
             return False
-        entry = self.strip_whitespace(entry)
+        entry = utils.strip_whitespace(entry)
         try:
             if category in self.data.keys():
                 # If renaming a category
@@ -234,22 +338,18 @@ class DataHandler:
         except KeyError:
             return False
 
-    @staticmethod
-    def strip_whitespace(entry: str) -> str:
-        entry = entry.rstrip()
-        entry = entry.lstrip()
-        return entry
-
     def add_definition(self, entry: str, category: str, definition: str) -> bool:
         """Adds/Renames a definition in the data for the current user."""
         if entry == '':
             return False
         if entry.isspace():
             return False
+        if category == "Create a Category":
+            return False
         # Check if adding a definition that exists
         if entry in self.data[category]:
             return False
-        entry = self.strip_whitespace(entry)
+        entry = utils.strip_whitespace(entry)
         try:
             if definition in self.data[category]:
                 # If renaming an existing definition
@@ -270,7 +370,7 @@ class DataHandler:
         return self.default_font
 
     def paste_definition(self, category: str, definition: str, text: str, time_stamp: str, font: tuple) -> bool:
-        if definition == '':
+        if definition == '' or definition is None:
             return False
         # Check if adding a definition that exists
         if definition in self.data[category]:
@@ -334,5 +434,20 @@ class DataHandler:
     def get_tab_font(self, category, definition) -> None:
         return self.data[category][definition][2]
 
-    def set_font(self, font, size):
+    def set_font(self, font, size) -> None:
         self.default_font = (font, size)
+
+    def set_last_category(self, category: str) -> None:
+        self.last_category = category
+
+    def get_last_category(self) -> str | None:
+        if self.last_category == '':
+            return None
+        else:
+            return self.last_category
+
+    def get_categories_definitions_formatted(self):
+        data = {}
+        for c in self.data.keys():
+            data.update({c: list(self.data[c].keys())})
+        return data

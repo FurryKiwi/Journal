@@ -10,7 +10,7 @@ class CustomListBox(tk.Listbox):
 
     def __init__(self, root, data_handler=None, category=None, **kw):
         kw['selectmode'] = kw.pop('selectmode')
-        tk.Listbox.__init__(self, root, kw)
+        tk.Listbox.__init__(self, root, **kw)
         self.root = root
         self.data_handler = data_handler
         self.category = category

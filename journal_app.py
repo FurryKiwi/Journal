@@ -11,9 +11,9 @@ except ImportError:  # Python 3
 # BUILT IN PYTHON 3.10 VERSION
 
 import utils
-from custom_classes import Layout, BackGround, HelpSection, SettingSection, SearchEngine
+from custom_classes import Layout, BackGround, HelpSection, SettingSection, SearchEngine, ExportView, ImportView
 from settings import *
-from data_model import DataHandler
+from data_model import DataHandler, LoginHandler
 from login_page import LoginPage
 from alert_system import AlertSystem
 
@@ -29,13 +29,15 @@ class Journal:
         self.search_engine = None
         self.alert_system = None
         self.main_layout = None
+        self.login_handler = None
         self.login_page = None
         self.canvas = None
 
         self.create_login_page()
 
     def create_login_page(self):
-        self.login_page = LoginPage(self, self.data_handler)
+        self.login_handler = LoginHandler(self.data_handler)
+        self.login_page = LoginPage(self, self.login_handler)
         self.login_page.run()
 
     def create_help_view(self):
@@ -43,7 +45,7 @@ class Journal:
         help_section.create_top_window_view()
 
     def create_settings_view(self):
-        settings_section = SettingSection(self.root, self.data_handler)
+        settings_section = SettingSection(self.root, self.data_handler, self.canvas)
         settings_section.create_top_window_view()
 
     def create_file_menu(self, root: tk.Tk) -> None:
@@ -54,6 +56,7 @@ class Journal:
         searchmenu = tk.Menu(menubar, tearoff=0)
         helpmenu = tk.Menu(menubar, tearoff=0)
         settingsmenu = tk.Menu(menubar, tearoff=0)
+        export_import_menu = tk.Menu(menubar, tearoff=0)
 
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Search", menu=searchmenu)
@@ -64,6 +67,10 @@ class Journal:
         filemenu.add_command(label="Clear Database", command=self._on_clearing)
         filemenu.add_command(label="Back Up/Restore",
                              command=lambda: self.data_handler.create_backup_view(self.root, self.main_layout))
+        filemenu.add_cascade(label="Import/Export", menu=export_import_menu)
+        export_import_menu.add_command(label="Import Data", command=self.import_data_view)
+        export_import_menu.add_command(label="Export Data", command=self.export_data_view)
+
         filemenu.add_separator()
         filemenu.add_command(label="Log Out", command=self._log_out)
 
@@ -73,6 +80,13 @@ class Journal:
 
         settingsmenu.add_command(label="Settings", command=lambda: self.create_settings_view())
 
+    def import_data_view(self):
+        # import_view = ImportView(self.root, self.data_handler)
+        tk.messagebox.showinfo("Nope", "Not Implemented yet!")
+
+    def export_data_view(self):
+        ExportView(self.root, self.data_handler)
+
     def event_biding(self) -> None:
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
         self.root.bind("<Control-f>", lambda event=None: self.search_engine.create_view())
@@ -80,8 +94,9 @@ class Journal:
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?"):
             self.main_layout.notebook.close_tabs(log_out=True)
+            self.data_handler.set_last_category(self.main_layout.category_box.get())
             self.data_handler.update_json()
-            self.data_handler.log_out_user()
+            self.data_handler.cancel_backup()
             self.alert_system.cancel_after()
             self.root.destroy()
             self.create_login_page()
@@ -90,6 +105,7 @@ class Journal:
         """Handles saving and quiting."""
         if tk.messagebox.askyesno("Quit", "Do you want to quit?"):
             self.main_layout.notebook.close_tabs(log_out=True)
+            self.data_handler.set_last_category(self.main_layout.category_box.get())
             self.data_handler.update_json()
             self.root.destroy()
 

@@ -15,12 +15,23 @@ import os
 from settings import *
 
 
-def set_folder_directory(cwd: str, directory: str, filename: str) -> str:
-    if os.path.isdir(directory):
-        return cwd + "\\" + directory + "\\" + filename
+def check_folder_exists(filepath: str) -> bool:
+    """Checks if a user folder already exists."""
+    if os.path.isdir(filepath):
+        return True
+    return False
+
+
+def check_folder_and_create(filepath: str) -> None:
+    if os.path.isdir(filepath):
+        return
     else:
-        os.mkdir(directory)
-        return cwd + "\\" + directory + "\\" + filename
+        os.makedirs(filepath)
+
+
+def read_config(filepath: str):
+    with open(filepath, 'r') as file:
+        return json.load(file)
 
 
 def dump_json(filepath: str, data: dict) -> None:
@@ -29,28 +40,24 @@ def dump_json(filepath: str, data: dict) -> None:
         file.truncate()
 
 
-def read_json(filename, database: bool) -> dict:
+def read_json(filename, data: dict) -> dict:
     """Read file data from the json file. Other-wise creates a new file."""
+    # CWD/Data/Users/Username/database.json
     try:
         with open(filename, 'r') as file:
             if os.path.getsize(filename) == 2 or os.path.getsize(filename) == 0:
-                return create_json(filename, database)
+                return create_json(filename, data)
             return json.load(file)
     except FileNotFoundError:
-        return create_json(filename, database)
+        return create_json(filename, data)
 
 
-def create_json(filename, database: bool) -> dict:
+def create_json(filename, data: dict) -> dict:
     """Creates the json file if it doesn't exist."""
-    if database:
-        new_data = {"current": "", "signed_in": "", "entry_limit": 20, "tab_limit": 4, "default_font": ["Arial", 12],
-                    "users": []}
-    else:
-        new_data = {"users": []}
     with open(filename, 'w') as file:
-        json.dump(new_data, file, indent=4)
+        json.dump(data, file, indent=4)
         file.truncate()
-        return new_data
+        return data
 
 
 def create_pop_up(title: str, root: tk.Tk, entry_limit: int) -> (tk.Toplevel, tk.Entry):
@@ -87,40 +94,16 @@ def validate_entry(entry, limit):
 
 
 def format_date(date: str) -> str:
-    months = {"01": "Jan",
-              "02": "Feb",
-              "03": "Mar",
-              "04": "Apr",
-              "05": "May",
-              "06": "June",
-              "07": "July",
-              "08": "Aug",
-              "09": "Sept",
-              "10": "Oct",
-              "11": "Nov",
-              "12": "Dec"}
     date = str(date)  # Convert from datetime object to string
-    month = months[date[5:7]]
+    month = MONTHS[date[5:7]]
     day = date[8:10]
     year = date[:4]
     return month + " " + day + ", " + year
 
 
 def get_current_date() -> str:
-    months = {"01": "Jan",
-              "02": "Feb",
-              "03": "Mar",
-              "04": "Apr",
-              "05": "May",
-              "06": "June",
-              "07": "July",
-              "08": "Aug",
-              "09": "Sept",
-              "10": "Oct",
-              "11": "Nov",
-              "12": "Dec"}
     date = time.strftime("%m %d %Y")
-    month = months[date[:2]]
+    month = MONTHS[date[:2]]
     day = date[3:5]
     year = date[6:]
     cur_date = month + " " + day + ", " + year
@@ -143,3 +126,14 @@ def set_window(root, w, h, title, resize: bool = False) -> None:
     else:
         root.resizable(0, 0)
     root.focus_set()
+
+
+def strip_whitespace(entry: str) -> str:
+    entry = entry.rstrip()
+    entry = entry.lstrip()
+    return entry
+
+
+def stay_on_top(win):
+    win.lift()
+    win.focus_set()

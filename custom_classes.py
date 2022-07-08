@@ -1,5 +1,4 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
-
 try:
     import Tkinter as tk
     import ttk
@@ -11,10 +10,14 @@ except ImportError:  # Python 3
 
 from PIL import ImageTk, Image
 import random
+from enchant import Dict, tokenize
+from enchant.tokenize import en  # Need this for building with pyinstaller, otherwise it doesn't import the en.tokenizer
 
 from custom_calendar import Calendar
 from custom_combobox import AutocompleteCombobox
 from custom_listbox import CustomListBox
+from custom_treeview import TreeView
+from data_model import Importer
 from settings import *
 import utils
 
@@ -26,9 +29,10 @@ class SettingSection:
     _supported_fonts = []
     _font_sizes = [str(x) for x in range(10, 20, 2)]
 
-    def __init__(self, root, data_handler):
+    def __init__(self, root, data_handler, canvas):
         self.root = root
         self.data_handler = data_handler
+        self.canvas = canvas
         self.window = None
         self.limit_entry = None
         self.tab_entry = None
@@ -36,8 +40,12 @@ class SettingSection:
         self.font_size_choices = None
         self.save_btn = None
 
+        self.background = None
+
         for i in tkfont.families():
             self._supported_fonts.append(i)
+
+        self.images = [k for k in BACKGROUND_IMAGES.keys()]
 
     def on_closing(self):
         self.update_database()
@@ -51,7 +59,7 @@ class SettingSection:
         top_frame = tk.Frame(self.window)
         middle_frame = tk.Frame(self.window)
         middle_2_frame = tk.Frame(self.window)
-        # bottom_frame = tk.Frame(self.window)
+        bottom_frame = tk.Frame(self.window)
 
         # Title
         tk.Label(top_frame, text="Settings Section", font=DEFAULT_FONT_UNDERLINE_BOLD).pack(side='top')
@@ -89,15 +97,27 @@ class SettingSection:
         self.font_size_choices.pack(side='left', anchor='nw', padx=4, pady=4)
         self.set_combobox(size=True)
 
+        tk.Label(bottom_frame, text="Change Background:", font=DEFAULT_FONT).pack(side='top', padx=4,
+                                                                                  pady=4)
+        self.background = ttk.Combobox(bottom_frame, values=self.images, font=DEFAULT_FONT,
+                                       state='readonly')
+        self.background.pack(side='top', anchor='nw', pady=4, padx=4)
+
         # Command biding
         self.font_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
         self.font_choices.bind("<<FontChange>>", lambda event=None: self.update_database())
         self.font_size_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
+        self.background.bind("<<ComboboxSelected>>", lambda event=None: self.change_background())
 
         top_frame.pack(side='top')
         middle_frame.pack(side='top')
         middle_2_frame.pack(side='top')
-        # bottom_frame.pack(side='top')
+        bottom_frame.pack(side='top')
+
+    def change_background(self):
+        new_image = BACKGROUND_IMAGES[self.background.get()]
+        self.canvas.change_background(new_image)
+        self.background.selection_clear()
 
     def update_database(self):
         self.data_handler.entry_limit = int(self.limit_entry.get())
@@ -188,7 +208,7 @@ class HelpSection:
 
     def create_top_window_view(self):
         self.window = tk.Toplevel(self.root)
-        utils.set_window(self.window, 300, 300, self._title)
+        utils.set_window(self.window, 600, 500, self._title)
         tk.Label(self.window, text="Welcome to the Help Section", font=DEFAULT_FONT_UNDERLINE_BOLD).pack(side='top')
         self.combo_box = ttk.Combobox(self.window, values=self._options, state="readonly", font=DEFAULT_FONT)
         self.combo_box.pack(pady=4, padx=4)
@@ -205,7 +225,7 @@ class HelpSection:
         scroll_bar.pack(in_=text_frame, side='right', fill='y', expand=False)
         self.text.pack(in_=text_frame, side='left', fill='both', expand=True, padx=4)
 
-        text_frame.pack()
+        text_frame.pack(expand=True, fill="both")
 
         self.window.focus_set()
         self.update_text()
@@ -226,36 +246,59 @@ class HelpSection:
 
 class BackGround(tk.Canvas):
     _bg_image = None
-    _filenames = ["Images/bg-0.jpeg",
-                  "Images/bg-1.jpeg",
-                  "Images/bg-2.jpeg",
-                  "Images/bg-3.jpeg"]
 
     def __init__(self, root, *args, **kwargs):
         tk.Canvas.__init__(self, root, *args, **kwargs)
         self.bind("<Configure>", self.on_resize)
-        self._bg_image = random.choice(self._filenames)
-        self.background_img = ImageTk.PhotoImage(file=self._bg_image)
+        self.images_paths = [v for v in BACKGROUND_IMAGES.values()]
+        self._image_path = random.choice(self.images_paths)
+        image = Image.open(self._image_path).resize((self.winfo_width(), self.winfo_height()), Image.ANTIALIAS)
+        self.background_img = ImageTk.PhotoImage(image)
         self.image = None
-        self.height = self.winfo_reqheight()
-        self.width = self.winfo_reqwidth()
         self.pack(expand=True, fill="both")
         self.drawn = self.create_image(0, 0, image=self.background_img, anchor='nw')
 
     def on_resize(self, event):
-        new_size = Image.open(self._bg_image).resize((event.width, event.height), Image.ANTIALIAS)
+        new_size = Image.open(self._image_path).resize((event.width, event.height), Image.ANTIALIAS)
 
         bg = ImageTk.PhotoImage(new_size)
         self.image = bg  # Need this so python doesn't get rid of it before it's drawn to the screen
 
-        self.itemconfig(self.drawn, image=bg)
+        self.itemconfig(self.drawn, image=self.image)
+
+    def change_background(self, image: str) -> None:
+        # Image is the file path to the selected image.
+        height = self.winfo_height()
+        width = self.winfo_width()
+        # Reset the image path
+        self._image_path = image
+        # Resize to the screen
+        new_size = Image.open(image).resize((width, height), Image.ANTIALIAS)
+        # Convert to photo image
+        self.image = ImageTk.PhotoImage(new_size)
+        # Set the canvas to the new image
+        self.itemconfig(self.drawn, image=self.image)
 
 
 class TextArea(tk.Text):
+    locale = 'en'
 
-    def __init__(self, text_frame, data_handler, category, definition, *args, **kwargs):
+    def __init__(self, text_frame, data_handler, category, definition, alert_system, *args, **kwargs):
         tk.Text.__init__(self, text_frame, *args, **kwargs)
         self.data_handler = data_handler
+        self.alert_system = alert_system
+        self.corpus = Dict(self.locale)
+        self.tokenize = tokenize.get_tokenizer(self.locale)
+        self._proxy = self._w + "_proxy"
+        self.tk.call("rename", self._w, self._proxy)
+        self.tk.createcommand(self._w, self._proxy_cmd)
+        self.tag_configure('sic', foreground='red')
+        self.bind('<<TextModified>>', self.on_modify)
+        self.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
+
+        self.selected_word = ""
+        self.suggested_words = {}
+        self.after_id = None
 
         self.insert(tk.END, self.data_handler.get_text_by_definition(category, definition))
 
@@ -265,6 +308,93 @@ class TextArea(tk.Text):
 
         scroll_bar.pack(in_=text_frame, side='right', fill='y', expand=False)
         self.pack(in_=text_frame, side='left', fill='both', expand=True, padx=4)
+
+    def pop_up_menu(self, event):
+        try:
+            self.selected_word = self.get(tk.SEL_FIRST, tk.SEL_LAST)
+        except tk.TclError:
+            return
+        # Check if multiple words are selected via having a space in them.
+        if " " in self.selected_word:
+            return
+        # Check if the selected is None
+        if self.selected_word != "None":
+            menu = tk.Menu(self, tearoff=0)
+            view = tk.Menu(self, tearoff=0)
+            menu.add_cascade(label="Add-Dict", menu=view)
+
+            def suggest_command(word):
+                def new_command():
+                    self.replace_word(word)
+
+                return new_command
+
+            def add_to_dict_command(word):
+                def new_command():
+                    self.add_to_dict(word)
+
+                return new_command
+
+            for key, value in self.suggested_words.items():
+                for item in value:
+                    if key == self.selected_word:
+                        menu.add_command(label=item, command=suggest_command(item))
+
+            view.add_command(label=self.selected_word, command=add_to_dict_command(self.selected_word))
+
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                self.selected_word = None
+                menu.grab_release()
+
+    def replace_word(self, word):
+        try:
+            self.replace(tk.SEL_FIRST, tk.SEL_LAST, word)
+        except tk.TclError:
+            pass
+
+    def add_to_dict(self, word):
+        self.replace(tk.SEL_FIRST, tk.SEL_LAST, word)
+        self.corpus.add(word)
+
+    def _proxy_cmd(self, command, *args):
+        """Intercept the Tk commands to the text widget and if any of the content
+        modifying commands are called, post a TextModified event."""
+        cmd = (self._proxy, command)
+        if args:
+            cmd = cmd + args
+        try:
+            result = self.tk.call(cmd)
+            if command in ('insert', 'delete', 'replace'):
+                self.event_generate('<<TextModified>>')
+            return result
+        except tk.TclError as e:
+            self.alert_system.show_alert(("Highlight a text in order to spell check it.", "White"))
+
+    def on_modify(self, event):
+        """Rate limit the spell-checking with a 100ms delay. If another modification
+        event comes in within this time, cancel the after call and re-schedule."""
+        try:
+            if self.after_id:
+                self.after_cancel(self.after_id)
+            self.after_id = self.after(250, self.on_modified)
+        except IndexError:
+            pass
+
+    def on_modified(self):
+        self.after_id = None
+        self.tag_remove('sic', '1.0', 'end')
+        num_lines = [int(val) for val in self.index("end").split(".")][0]
+        for line in range(1, num_lines):
+            data = self.get(f"{line}.0 linestart", f"{line}.0 lineend")
+            for word, pos in self.tokenize(data):
+                check = self.corpus.check(word)
+                if not check:
+                    start = f"{line}.{pos}"
+                    end = f"{line}.{pos + len(word)}"
+                    self.tag_add("sic", start, end)
+                    self.suggested_words.update({word: self.corpus.suggest(word)})
 
 
 class TabArea(tk.Frame):
@@ -306,7 +436,7 @@ class TabArea(tk.Frame):
                                                                         definition))
 
         # Create the text area
-        self.text_area = TextArea(text_frame, self.data_handler, category, definition,
+        self.text_area = TextArea(text_frame, self.data_handler, category, definition, self.alert_system,
                                   font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
                                   undo=True)
 
@@ -324,9 +454,8 @@ class TabArea(tk.Frame):
         bottom_frame.pack(side="bottom", fill='x')
         text_frame.pack(side='top', fill='both', expand=True)
 
-        self.text_area.bind("<End>",
-                            lambda event=None: self.notebook.close_tabs(self.notebook.get_tab_frames([definition]),
-                                                                        save=True))
+        self.text_area.bind("<End>", lambda event=None: self.notebook.close_tabs(
+            self.notebook.get_tab_frames([definition]), save=True))
 
         self.set_combobox(category, definition)
 
@@ -351,7 +480,6 @@ class TabArea(tk.Frame):
         fonts = self.font_choices['values']
         sizes = self.font_size_choices['values']
         f, s = self.data_handler.get_tab_font(category, definition)
-        print(f, s, type(f), type(s))
         _use_default_font = False
         _use_default_size = False
         if f not in fonts:
@@ -386,7 +514,7 @@ class SearchEngine:
     def create_view(self):
         if not self.packed:
             self.search_frame = ttk.Frame(self.root.category_frame)
-            self.search_frame.grid(row=0, column=2, columnspan=5)
+            self.search_frame.grid(row=0, column=4, columnspan=5)
             self.search_entry = tk.Entry(self.search_frame, width=21, font=DEFAULT_FONT, validate="key",
                                          background=ENTRY_COLOR,
                                          validatecommand=(self.root.register(
@@ -445,6 +573,255 @@ class SearchEngine:
         self.root.list_box.unlock_selection()
 
 
+class ImportView(tk.Toplevel):
+    def __init__(self, root, data_handler, **kwargs):
+        tk.Toplevel.__init__(self, root, **kwargs)
+        utils.set_window(self, 800, 500, "Import")
+        self.data_handler = data_handler
+        self.importer = Importer()
+
+        self.category_box = None
+        self.list_box = None
+        self.tree_view = None
+
+        self.create_ui()
+        self.update_list()
+
+    def create_ui(self):
+        # Left Frame
+        left_main_frame = tk.Frame(self)
+        left_main_frame.pack(side='left', anchor='w', expand=True, fill='both', pady=4, padx=4)
+        # Right Frame
+        right_main_frame = tk.Frame(self)
+        right_main_frame.pack(side='right', anchor='e', expand=True, fill='both', padx=4, pady=4)
+
+        # Top Left frame combobox and listbox
+        top_left_frame = ttk.Frame(left_main_frame, relief="ridge", borderwidth=2)
+        top_left_frame.pack(side='top', anchor='nw', expand=True, fill='both', padx=4, pady=4)
+
+        # Top Right frame tree view
+        top_right_frame = ttk.Frame(right_main_frame, relief="ridge", borderwidth=2)
+        top_right_frame.pack(side='top', anchor='nw', expand=True, fill='both', padx=4, pady=4)
+
+        # Left Frame Elements
+        # Create the drop-down category
+        tk.Label(top_left_frame, text="Categories", font=DEFAULT_FONT).pack(side='top', padx=4, pady=4)
+        self.category_box = ttk.Combobox(top_left_frame, values=self.importer.get_import_data_categories(),
+                                         font=DEFAULT_FONT, state="readonly")
+        self.category_box.pack(side='top', padx=4, pady=4)
+        self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
+
+        # Create the listbox to display all the definitions
+        self.list_box = CustomListBox(top_left_frame, height=SCREEN_HEIGHT, font=DEFAULT_FONT, selectmode=tk.EXTENDED,
+                                      activestyle=tk.DOTBOX, data_handler=self.data_handler,
+                                      category=self.category_box.current(0))
+        self.list_box.pack(side='top', expand=True, fill='both', pady=4, padx=4)
+        self.list_box.configure(highlightcolor=BLACK)
+        self.list_box.lock_selection()
+
+        # Create the definition scrollbar
+        vert_scroll_bar = ttk.Scrollbar(self.list_box)
+        vert_scroll_bar.pack(side='right', fill='y')
+        vert_scroll_bar.config(command=self.list_box.yview)
+
+        self.list_box.config(yscrollcommand=vert_scroll_bar.set)
+
+        # Tree View Frame Elements
+        right = tk.Frame(top_right_frame)
+        right.pack(side='right', expand=True, fill='both')
+        left = tk.Frame(top_right_frame)
+        left.pack(side='left', expand=True, fill='both')
+
+        tk.Label(right, text="Functions:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Remove All", width=18,
+                   command=lambda: self.tree_view.remove_all_elements()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Remove Selected", width=18,
+                   command=lambda: self.tree_view.remove_elements()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Export All", width=18,
+                   command=lambda: self.tree_view.add_all_elements(
+                       self.importer.get_all_data_formatted())).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Export Selected", width=18,
+                   command=lambda: self.add_selected()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Finish", width=18,
+                   command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
+
+        tk.Label(left, text="Preview:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
+        self.tree_view = TreeView(left, self.data_handler)
+        self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
+
+    def add_selected(self):
+        category = self.category_box.get()
+        indexes = self.list_box.curselection()
+        elements = [self.list_box.get(i) for i in indexes]
+
+        self.tree_view.add_elements(category, elements)
+
+    def set_category_list(self, category: str = None) -> None:
+        """Set the category list to specified category or to the first one in the list."""
+        if category is not None:
+            temp_list = self.category_box['values']
+            for index, i_d in enumerate(temp_list):
+                if i_d == category:
+                    self.category_box.current(index)
+        else:
+            self.category_box.current(0)
+        self.update_list()
+
+    def update_list(self, word_list: list = None, search: bool = False) -> None:
+        """Updates the definition list from selected category or from the searched item."""
+        if search:
+            self.list_box.delete(0, self.list_box.size())
+            for definition in word_list:
+                self.list_box.insert(0, definition)
+        else:
+            category = self.category_box.get()
+            if self.list_box.size() != 0:
+                self.list_box.delete(0, self.list_box.size())
+            temp_list = self.importer.get_import_data_definitions(category)
+            self.list_box.category = category
+            if temp_list is not None:
+                for definition in temp_list:
+                    self.list_box.insert(tk.END, definition)
+            self.category_box.selection_clear()
+
+    def update_categories(self) -> None:
+        """Updates the category selection box with given values from the database."""
+        self.category_box.config(values=self.importer.get_import_data_categories())
+
+    def finalize(self):
+        print("Importing")
+
+
+class ExportView(tk.Toplevel):
+
+    def __init__(self, root, data_handler, **kwargs):
+        tk.Toplevel.__init__(self, root, **kwargs)
+        utils.set_window(self, 800, 500, "Export")
+        self.data_handler = data_handler
+
+        self.category_box = None
+        self.list_box = None
+        self.tree_view = None
+
+        self.create_ui()
+        self.update_list()
+
+    def create_ui(self):
+        # Left Frame
+        left_main_frame = tk.Frame(self)
+        left_main_frame.pack(side='left', anchor='w', expand=True, fill='both', pady=4, padx=4)
+        # Right Frame
+        right_main_frame = tk.Frame(self)
+        right_main_frame.pack(side='right', anchor='e', expand=True, fill='both', padx=4, pady=4)
+
+        # Top Left frame combobox and listbox
+        top_left_frame = ttk.Frame(left_main_frame, relief="ridge", borderwidth=2)
+        top_left_frame.pack(side='top', anchor='nw', expand=True, fill='both', padx=4, pady=4)
+
+        # Top Right frame tree view
+        top_right_frame = ttk.Frame(right_main_frame, relief="ridge", borderwidth=2)
+        top_right_frame.pack(side='top', anchor='nw', expand=True, fill='both', padx=4, pady=4)
+
+        # Left Frame Elements
+        # Create the drop-down category
+        tk.Label(top_left_frame, text="Categories", font=DEFAULT_FONT).pack(side='top', padx=4, pady=4)
+        self.category_box = ttk.Combobox(top_left_frame, values=self.data_handler.get_categories_by_list(),
+                                         font=DEFAULT_FONT, state="readonly")
+        self.category_box.pack(side='top', padx=4, pady=4)
+        self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
+
+        # Create the listbox to display all the definitions
+        self.list_box = CustomListBox(top_left_frame, height=SCREEN_HEIGHT, font=DEFAULT_FONT, selectmode=tk.EXTENDED,
+                                      activestyle=tk.DOTBOX, data_handler=self.data_handler,
+                                      category=self.category_box.current(0))
+        self.list_box.pack(side='top', expand=True, fill='both', pady=4, padx=4)
+        self.list_box.configure(highlightcolor=BLACK)
+        self.list_box.lock_selection()
+
+        # Create the definition scrollbar
+        vert_scroll_bar = ttk.Scrollbar(self.list_box)
+        vert_scroll_bar.pack(side='right', fill='y')
+        vert_scroll_bar.config(command=self.list_box.yview)
+
+        self.list_box.config(yscrollcommand=vert_scroll_bar.set)
+
+        # Tree View Frame Elements
+        right = tk.Frame(top_right_frame)
+        right.pack(side='right', expand=True, fill='both')
+        left = tk.Frame(top_right_frame)
+        left.pack(side='left', expand=True, fill='both')
+
+        tk.Label(right, text="Functions:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Remove All", width=18,
+                   command=lambda: self.tree_view.remove_all_elements()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Remove Selected", width=18,
+                   command=lambda: self.tree_view.remove_elements()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Export All", width=18,
+                   command=lambda: self.tree_view.add_all_elements(
+                       self.data_handler.get_categories_definitions_formatted())).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Export Selected", width=18,
+                   command=lambda: self.add_selected()).pack(side='top', pady=4, padx=4)
+        ttk.Button(right, style="Accent.TButton", text="Finish", width=18,
+                   command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
+
+        tk.Label(left, text="Preview:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
+        self.tree_view = TreeView(left, self.data_handler)
+        self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
+
+    def add_selected(self):
+        category = self.category_box.get()
+        indexes = self.list_box.curselection()
+        elements = [self.list_box.get(i) for i in indexes]
+
+        self.tree_view.add_elements(category, elements)
+
+    def set_category_list(self, category: str = None) -> None:
+        """Set the category list to specified category or to the first one in the list."""
+        if category is not None:
+            temp_list = self.category_box['values']
+            for index, i_d in enumerate(temp_list):
+                if i_d == category:
+                    self.category_box.current(index)
+        else:
+            self.category_box.current(0)
+        self.update_list()
+
+    def update_list(self, word_list: list = None, search: bool = False) -> None:
+        """Updates the definition list from selected category or from the searched item."""
+        if search:
+            self.list_box.delete(0, self.list_box.size())
+            for definition in word_list:
+                self.list_box.insert(0, definition)
+        else:
+            category = self.category_box.get()
+            if self.list_box.size() != 0:
+                self.list_box.delete(0, self.list_box.size())
+            temp_list = self.data_handler.get_definitions_by_list(category)
+            self.list_box.category = category
+            if temp_list is not None:
+                for definition in temp_list:
+                    self.list_box.insert(tk.END, definition)
+            self.category_box.selection_clear()
+
+    def update_categories(self) -> None:
+        """Updates the category selection box with given values from the database."""
+        self.category_box.config(values=self.data_handler.get_categories_by_list())
+
+    def finalize(self):
+        """This will send all data to data_handler to export the proper data to a json file."""
+        data = self.tree_view.get_all_elements()
+        if data is None:
+            tk.messagebox.showinfo("No Data", "No Data to be exported.")
+            self.focus_set()
+            return
+
+        if tk.messagebox.askyesno("Exporting Data", "Are you sure you want to export this data?"):
+            check = self.data_handler.export_data(self.tree_view.get_all_elements())
+            if check:
+                tk.messagebox.showinfo("Export Success", "Data has been exported.")
+                self.destroy()
+
+
 class Layout(tk.Frame):
 
     def __init__(self, canvas, data_handler, alert_system, **kwargs):
@@ -452,12 +829,27 @@ class Layout(tk.Frame):
         self.root = canvas
         self.data_handler = data_handler
         self.alert_system = alert_system
-        self.alert_system.main_layout = self
+        self.alert_system.layout = self
         self.copied_definition = None
         self.copied_text = None
         self.copied_font = None
         self.copied_time_stamp = None
 
+        self.category_frame = None
+        self.category_box = None
+
+        self.def_entry = None
+        self.add_definition_btn = None
+        self.list_box = None
+
+        self.notebook_frame = None
+        self.notebook = None
+
+        self.create_ui()
+
+        self.set_category_list(self.data_handler.get_last_category())
+
+    def create_ui(self):
         parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=25)
         parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
 
@@ -469,13 +861,15 @@ class Layout(tk.Frame):
 
         tk.Label(self.category_frame, text="Select Category:", font=DEFAULT_FONT).grid(row=0, column=0, pady=6)
 
+        ttk.Button(self.category_frame, text="Add", style="Accent.TButton", width=0,
+                   command=lambda: self.create_view(state="acategory")).grid(row=1, column=2, pady=4)
+
         # Create the drop-down category
         self.category_box = ttk.Combobox(self.category_frame, values=self.data_handler.get_categories_by_list(),
                                          font=DEFAULT_FONT, state="readonly")
         self.category_box.grid(row=1, column=0, padx=4, pady=4)
-        self.category_box.current(0)
 
-        tk.Label(self.category_frame, text="Alerts:", font=DEFAULT_FONT).grid(row=1, column=1)
+        tk.Label(self.category_frame, text="Alerts:", font=DEFAULT_FONT).grid(row=1, column=3)
 
         tk.Label(tool_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT).pack(side='left',
                                                                                                      anchor='e',
@@ -540,9 +934,9 @@ class Layout(tk.Frame):
             else:
                 self.alert_system.show_alert(("Category doesn't exist.", "red"))
 
-    def set_category_list(self, category=None) -> None:
+    def set_category_list(self, category: str = None) -> None:
         """Set the category list to specified category or to the first one in the list."""
-        if category:
+        if category is not None:
             temp_list = self.category_box['values']
             for index, i_d in enumerate(temp_list):
                 if i_d == category:
@@ -551,7 +945,7 @@ class Layout(tk.Frame):
             self.category_box.current(0)
         self.update_list()
 
-    def add_category(self, entry: str, window: tk.Toplevel, category=None) -> None:
+    def add_category(self, entry: str, window: tk.Toplevel, category: str = None) -> None:
         """Save the category list to database."""
         # Check if category is getting renamed to close all tabs
         if category is not None:
@@ -565,11 +959,6 @@ class Layout(tk.Frame):
             self.set_category_list(entry)
         else:
             self.alert_system.show_alert(("Could not save category.", "red"))
-
-    @staticmethod
-    def stay_on_top(win):
-        win.lift()
-        win.focus_set()
 
     def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
@@ -587,7 +976,7 @@ class Layout(tk.Frame):
         else:
             self.alert_system.show_alert(("Could not save definition.", "red"))
             if window:
-                window.after_idle(self.stay_on_top, window)
+                window.after_idle(utils.stay_on_top, window)
 
         self.def_entry.delete(0, len(entry))
         self.def_entry.focus_set()
@@ -683,21 +1072,21 @@ class Layout(tk.Frame):
         instance = event.widget
         # Listbox drop down menu
         if isinstance(instance, tk.Listbox):
+            menu = tk.Menu(self.root, tearoff=0)
+            menu.add_command(label="Paste",
+                             command=lambda: self.paste_definition())
             index = instance.curselection()
             if index:
-                menu = tk.Menu(self.root, tearoff=0)
                 menu.add_command(label="Delete", command=lambda: self.delete_definition(instance, index))
                 if len(index) == 1:
                     menu.add_command(label="Rename",
                                      command=lambda: self.create_view(instance, index, state='rdefinition'))
                     menu.add_command(label="Copy",
                                      command=lambda: self.copy_definition(instance, index))
-                    menu.add_command(label="Paste",
-                                     command=lambda: self.paste_definition())
-                try:
-                    menu.tk_popup(event.x_root, event.y_root)
-                finally:
-                    menu.grab_release()
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
         # Category drop down menu
         if isinstance(instance, ttk.Combobox):
             menu = tk.Menu(self.root, tearoff=0)

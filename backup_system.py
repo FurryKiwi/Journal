@@ -31,7 +31,7 @@ class BackUpView:
         ttk.Label(label_frame, text=f"Create a Back Up:", font=DEFAULT_FONT).pack(side='top', anchor='nw')
 
         ttk.Button(label_frame, text="Manual Back Up", width=14, style="Accent.TButton",
-                   command=lambda: self.data_handler.backup_data()).pack(side='top', anchor='ne', pady=8, padx=15)
+                   command=lambda: self.backup_data(top_level)).pack(side='top', anchor='ne', pady=8, padx=15)
 
         ttk.Label(label_frame, text=f"Restore Last Back Up:", font=DEFAULT_FONT).pack(side='top', anchor='nw')
 
@@ -64,6 +64,15 @@ class BackUpView:
                 self.main_layout.update_categories()
                 self.main_layout.set_category_list()
                 self.main_layout.update_list()
+            window.destroy()
+        else:
+            window.focus_set()
+
+    def backup_data(self, window: tk.Toplevel) -> None:
+        if tk.messagebox.askyesno("Backup Data", "Are you sure you want to overwrite your backed up data?"):
+            self.data_handler.backup_data()
+            window.destroy()
+        else:
             window.focus_set()
 
 
@@ -72,7 +81,6 @@ class BackUpSystem:
     _filename = "backup.json"
     _current_directory = os.getcwd()
     _directory = "Back Ups"
-    _save_path = ""
 
     def __init__(self, root, data_handler, alert_system):
         self.root = root
@@ -82,7 +90,8 @@ class BackUpSystem:
         self.backup_data = None
         self.active = False
         self.after_id = ""
-        self._save_path = utils.set_folder_directory(self._current_directory, self._directory, self._filename)
+        self._save_path = os.path.join(self._current_directory, self._directory, self._filename)
+        utils.check_folder_and_create(os.path.join(self._current_directory, self._directory))
 
     def cancel_auto(self) -> None:
         """Cancels the 'after' call and generates an event."""
@@ -115,9 +124,8 @@ class BackUpSystem:
             self.cancel_auto()
 
         if self.active:
-            i_d = self.root.after(time_frame, lambda: self.auto_backup(user, time_frame))
             # id to keep track of which function call the auto back-up is on (string)
-            self.after_id = i_d
+            self.after_id = self.root.after(time_frame, lambda: self.auto_backup(user, time_frame))
             # Tries to back up the user with the current data
             self.backup_user(user, data)
 
@@ -132,7 +140,7 @@ class BackUpSystem:
 
     def backup_user(self, user: str, data: dict) -> None:
         """Back's up the current user with the data associated with user."""
-        self.backup_data = utils.read_json(self._save_path, False)
+        self.backup_data = utils.read_json(self._save_path, data={"users": []})
         # If no data is being passed, then returns false
         if data == {}:
             self.alert_system.show_alert(("No data to backup.", "red"))
@@ -166,7 +174,7 @@ class BackUpSystem:
 
     def restore_user(self, user: str) -> dict:
         """Restores the current user's saved backup if there is one. Returns Data."""
-        raw_data = utils.read_json(self._save_path, False)
+        raw_data = utils.read_json(self._save_path, data={"users": []})
         check = self._check_user_for_backup(user, raw_data)
         if check:
             for data in raw_data['users']:

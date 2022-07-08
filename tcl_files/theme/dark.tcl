@@ -144,7 +144,7 @@ namespace eval ttk::theme::azure-dark {
             ] -width 15 -sticky e
 
         # AccentButton
-        ttk::style configure Accent.TButton -padding {8 2 8 4} -width -10 -anchor center
+        ttk::style configure Accent.TButton -padding {2 2 2 4} -width -10 -anchor center
 
         ttk::style element create AccentButton.button image \
             [list $I(rect-accent) \

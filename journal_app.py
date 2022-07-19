@@ -6,7 +6,7 @@ try:
 except ImportError:  # Python 3
     import tkinter as tk
     from tkinter import ttk
-    from tkinter import messagebox
+    from tkinter import messagebox, filedialog
 
 # BUILT IN PYTHON 3.10 VERSION
 
@@ -40,14 +40,6 @@ class Journal:
         self.login_page = LoginPage(self, self.login_handler)
         self.login_page.run()
 
-    def create_help_view(self):
-        help_section = HelpSection(self.root)
-        help_section.create_top_window_view()
-
-    def create_settings_view(self):
-        settings_section = SettingSection(self.root, self.data_handler, self.canvas)
-        settings_section.create_top_window_view()
-
     def create_file_menu(self, root: tk.Tk) -> None:
         menubar = tk.Menu(root)
         root.config(menu=menubar)
@@ -69,23 +61,25 @@ class Journal:
                              command=lambda: self.data_handler.create_backup_view(self.root, self.main_layout))
         filemenu.add_cascade(label="Import/Export", menu=export_import_menu)
         export_import_menu.add_command(label="Import Data", command=self.import_data_view)
-        export_import_menu.add_command(label="Export Data", command=self.export_data_view)
+        export_import_menu.add_command(label="Export Data", command=lambda: ExportView(self.root, self.data_handler))
 
         filemenu.add_separator()
         filemenu.add_command(label="Log Out", command=self._log_out)
 
         searchmenu.add_command(label="Word Search", command=lambda: self.search_engine.create_view())
 
-        helpmenu.add_command(label="Documentation", command=lambda: self.create_help_view())
+        helpmenu.add_command(label="Documentation", command=lambda: HelpSection(self.root))
 
-        settingsmenu.add_command(label="Settings", command=lambda: self.create_settings_view())
+        settingsmenu.add_command(label="Settings",
+                                 command=lambda: SettingSection(self.root, self.data_handler, self.canvas))
 
     def import_data_view(self):
-        # import_view = ImportView(self.root, self.data_handler)
-        tk.messagebox.showinfo("Nope", "Not Implemented yet!")
-
-    def export_data_view(self):
-        ExportView(self.root, self.data_handler)
+        try:
+            filepath = tk.filedialog.askopenfilename(filetypes=[("Json Files", ".json")])
+            if filepath != '':
+                ImportView(self.root, self.data_handler, filepath, self.main_layout)
+        except FileNotFoundError:
+            tk.messagebox.showinfo("No File", "Please select a file to open.")
 
     def event_biding(self) -> None:
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())

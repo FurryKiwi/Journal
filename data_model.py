@@ -154,38 +154,6 @@ class LoginHandler:
         return user, pw
 
 
-class Importer:
-    _current_directory = os.getcwd()
-    _directory = "Export"
-
-    def __init__(self):
-        # Still need to finish this. But possibly move to the data_handler class
-        self.import_data = {}
-        # self.import_path = os.path.join(self._current_directory, self._directory, current_user)
-        # self.file_name = "database_exported_" + current_user + ".json"
-        # self.file_path = os.path.join(self.import_path, self.file_name)
-        # if os.path.isdir(self.import_path):
-        #     # self.import_data = utils.read_json(self.file_path, data={})
-        # else:
-        #     self.import_data = {}
-
-    def get_import_data_categories(self) -> list:
-        if self.import_data != {}:
-            return list(self.import_data.keys())
-        return []
-
-    def get_import_data_definitions(self, category: str) -> list:
-        if self.import_data != {}:
-            return list(self.import_data[category].keys())
-        return []
-
-    def get_all_data_formatted(self):
-        data = {}
-        for c in self.import_data.keys():
-            data.update({c: list(self.import_data[c].keys())})
-        return data
-
-
 class DataHandler:
     _filename = "database.json"
     _current_directory = os.getcwd()
@@ -249,9 +217,23 @@ class DataHandler:
         utils.dump_json(self._data_save_path, self.data)
 
     # Import/Export Functions
-    def combine_data(self):
+    def import_data(self, data: dict, orig_data: dict):
         """Imports only the selected data the user wants to import."""
-        print("yes")
+        try:
+            self.backup_data()
+            new_data = self.data.copy()
+            for key, values in data.items():
+                for cat, definitions in orig_data.items():
+                    for definition, details in definitions.items():
+                        if definition in values:
+                            if key in new_data:
+                                new_data[key].update({definition: details})
+                            else:
+                                new_data.update({key: {definition: details}})
+            self.data = new_data
+            return True
+        except KeyError:
+            return False
 
     def export_data(self, data: dict):
         """Exports only the selected data the user wants to export."""
@@ -273,7 +255,7 @@ class DataHandler:
         try:
             utils.dump_json(export_filepath, export_data)
             return True
-        except:
+        except FileNotFoundError:
             return False
 
     # Back up Functions
@@ -447,6 +429,7 @@ class DataHandler:
             return self.last_category
 
     def get_categories_definitions_formatted(self):
+        """Used for populating the export view function."""
         data = {}
         for c in self.data.keys():
             data.update({c: list(self.data[c].keys())})

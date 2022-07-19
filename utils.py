@@ -29,6 +29,11 @@ def check_folder_and_create(filepath: str) -> None:
         os.makedirs(filepath)
 
 
+def read_txt(filepath: str):
+    with open(filepath, 'r') as file:
+        return file.readlines()
+
+
 def read_config(filepath: str):
     with open(filepath, 'r') as file:
         return json.load(file)

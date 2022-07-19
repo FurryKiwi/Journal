@@ -1,0 +1,8 @@
+Right-Click: Used for a variety of menus for copying, pasting, renaming, deleting, etc.
+Back-up/Auto Back-up: Feature that can be setup to automatically or manually back up your data, so you will never lose any data.
+Dragging and dropping definitions: So user can keep the order of things the way they want them to be.
+Multiple Categories: Users can create as many categories as they need in order to organize their data.
+Search Feature: Can be used to search through the user's definition list. At this time, it's only able to search through definitions and not the text entries in those definitions.
+Entry length: The character length of an entry is set to 20 for rendering purposes.
+Users may change it for longer definition entries but not recommended.
+Copy/Paste Definitions: Ability to copy a single definition from one category to another. Used by the right-click function.

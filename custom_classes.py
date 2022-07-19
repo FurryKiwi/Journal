@@ -1,4 +1,6 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
+import json
+
 try:
     import Tkinter as tk
     import ttk
@@ -12,12 +14,12 @@ from PIL import ImageTk, Image
 import random
 from enchant import Dict, tokenize
 from enchant.tokenize import en  # Need this for building with pyinstaller, otherwise it doesn't import the en.tokenizer
+import os
 
 from custom_calendar import Calendar
 from custom_combobox import AutocompleteCombobox
 from custom_listbox import CustomListBox
 from custom_treeview import TreeView
-from data_model import Importer
 from settings import *
 import utils
 
@@ -46,6 +48,7 @@ class SettingSection:
             self._supported_fonts.append(i)
 
         self.images = [k for k in BACKGROUND_IMAGES.keys()]
+        self.create_top_window_view()
 
     def on_closing(self):
         self.update_database()
@@ -174,37 +177,17 @@ class SettingSection:
 class HelpSection:
     _title = "Help Section"
     _options = ["Keyboard Shortcuts", "Functions"]
-    _keyboard_shortcuts = "Control-F: Opens the search bar.\n" \
-                          "\nKey-End: Closes the opened tab in the notebook.\n" \
-                          "\nAlt-F4: Closes the program.\n" \
-                          "\nCtrl-C: Copies the text in the text area.\n" \
-                          "\nCtrl-V: Pastes the text in the text area.\n" \
-                          "\nKey-Tab: Tabs through the widgets as well in the text.\n" \
-                          "\nKey-Arrows: To go through the widgets, definitions and such.\n" \
-                          "\nKey-Enter: Mimics the use of save buttons instead of clicking.\n" \
-                          "\nCtrl-Tab: Will get the cursor to reset back to the main-window " \
-                          "after closing a notebook tab.\n" \
-                          "\nShift-ScrollWheel: Will move horizontally in the list of entries.\n"
-
-    _functions = "Right-Click: Used for a variety of menus for copying, pasting, renaming, deleting, etc.\n" \
-                 "\nBack-up/Auto Back-up: Feature that can be setup to automatically or manually back up your data," \
-                 "so you will never lose any data.\n" \
-                 "\nDragging and dropping definitions: So user can keep the order of things the way they" \
-                 "want them to be.\n" \
-                 "\nMultiple Categories: Users can create as many categories as they need in order " \
-                 "to organize their data.\n" \
-                 "\nSearch Feature: Can be used to search through the users definition list. At this time, it's only" \
-                 "able to search through definitions and not the text entries in those definitions.\n" \
-                 "\nEntry length: The character length of an entry is set to 20 for rendering purposes. " \
-                 "Users may change it for longer definition entries but not recommended.\n" \
-                 "\nCopy/Paste Definitions: Ability to copy a single definition from one category to another." \
-                 "Used by the right-click function.\n"
+    _functions_filepath = os.path.join(os.getcwd(), "Data", "Config", "functions_docs.txt")
+    _keyboard_filepath = os.path.join(os.getcwd(), "Data", "Config", "keyboard_docs.txt")
 
     def __init__(self, root):
         self.root = root
         self.window = None
         self.text = None
         self.combo_box = None
+        self._functions = utils.read_txt(self._functions_filepath)
+        self._keyboard_shortcuts = utils.read_txt(self._keyboard_filepath)
+        self.create_top_window_view()
 
     def create_top_window_view(self):
         self.window = tk.Toplevel(self.root)
@@ -234,12 +217,16 @@ class HelpSection:
         if self.combo_box.get() == "Keyboard Shortcuts":
             self.text.config(state=tk.NORMAL)
             self.text.delete("1.0", "end-1c")
-            self.text.insert(tk.END, self._keyboard_shortcuts)
+            for item in self._keyboard_shortcuts:
+                self.text.insert(tk.END, item)
+                self.text.insert(tk.END, "\n")
             self.text.config(state=tk.DISABLED)
         elif self.combo_box.get() == "Functions":
             self.text.config(state=tk.NORMAL)
             self.text.delete("1.0", "end-1c")
-            self.text.insert(tk.END, self._functions)
+            for item in self._functions:
+                self.text.insert(tk.END, item)
+                self.text.insert(tk.END, "\n")
             self.text.config(state=tk.DISABLED)
         self.combo_box.selection_clear()
 
@@ -574,11 +561,19 @@ class SearchEngine:
 
 
 class ImportView(tk.Toplevel):
-    def __init__(self, root, data_handler, **kwargs):
+
+    def __init__(self, root, data_handler, filepath, main_layout, **kwargs):
         tk.Toplevel.__init__(self, root, **kwargs)
         utils.set_window(self, 800, 500, "Import")
         self.data_handler = data_handler
-        self.importer = Importer()
+        self.main_layout = main_layout
+
+        with open(filepath, 'r') as file:
+            self.data = json.load(file)
+
+        self.formatted_data = {}
+        for c in self.data.keys():
+            self.formatted_data.update({c: list(self.data[c].keys())})
 
         self.category_box = None
         self.list_box = None
@@ -605,8 +600,8 @@ class ImportView(tk.Toplevel):
 
         # Left Frame Elements
         # Create the drop-down category
-        tk.Label(top_left_frame, text="Categories", font=DEFAULT_FONT).pack(side='top', padx=4, pady=4)
-        self.category_box = ttk.Combobox(top_left_frame, values=self.importer.get_import_data_categories(),
+        tk.Label(top_left_frame, text="Opened File:", font=DEFAULT_FONT).pack(side='top', padx=4, pady=4)
+        self.category_box = ttk.Combobox(top_left_frame, values=[item for item in self.data.keys()],
                                          font=DEFAULT_FONT, state="readonly")
         self.category_box.pack(side='top', padx=4, pady=4)
         self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
@@ -637,20 +632,26 @@ class ImportView(tk.Toplevel):
                    command=lambda: self.tree_view.remove_all_elements()).pack(side='top', pady=4, padx=4)
         ttk.Button(right, style="Accent.TButton", text="Remove Selected", width=18,
                    command=lambda: self.tree_view.remove_elements()).pack(side='top', pady=4, padx=4)
+
         ttk.Button(right, style="Accent.TButton", text="Export All", width=18,
-                   command=lambda: self.tree_view.add_all_elements(
-                       self.importer.get_all_data_formatted())).pack(side='top', pady=4, padx=4)
+                   command=lambda: self.tree_view.add_all_elements(self.formatted_data, importing=True)).pack(
+            side='top', pady=4, padx=4)
+
         ttk.Button(right, style="Accent.TButton", text="Export Selected", width=18,
                    command=lambda: self.add_selected()).pack(side='top', pady=4, padx=4)
         ttk.Button(right, style="Accent.TButton", text="Finish", width=18,
                    command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
 
-        tk.Label(left, text="Preview:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
+        tk.Label(left, text="Existing Data:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
         self.tree_view = TreeView(left, self.data_handler)
+        self.tree_view.add_default_items(self.data_handler.get_categories_definitions_formatted(), importing=True,
+                                         exception=True)
         self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
 
     def add_selected(self):
-        category = self.category_box.get()
+        category = self.tree_view.item_selected
+        if category is None:
+            category = self.category_box.get()
         indexes = self.list_box.curselection()
         elements = [self.list_box.get(i) for i in indexes]
 
@@ -667,29 +668,44 @@ class ImportView(tk.Toplevel):
             self.category_box.current(0)
         self.update_list()
 
-    def update_list(self, word_list: list = None, search: bool = False) -> None:
+    def update_list(self) -> None:
         """Updates the definition list from selected category or from the searched item."""
-        if search:
+        category = self.category_box.get()
+        if self.list_box.size() != 0:
             self.list_box.delete(0, self.list_box.size())
-            for definition in word_list:
-                self.list_box.insert(0, definition)
-        else:
-            category = self.category_box.get()
-            if self.list_box.size() != 0:
-                self.list_box.delete(0, self.list_box.size())
-            temp_list = self.importer.get_import_data_definitions(category)
-            self.list_box.category = category
-            if temp_list is not None:
-                for definition in temp_list:
-                    self.list_box.insert(tk.END, definition)
-            self.category_box.selection_clear()
+        temp_list = self.data[category]
+        self.list_box.category = category
+        if temp_list is not None:
+            for definition in temp_list:
+                self.list_box.insert(tk.END, definition)
+        self.category_box.selection_clear()
 
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
-        self.category_box.config(values=self.importer.get_import_data_categories())
+        self.category_box.config(values=[item for item in self.data.keys()])
 
     def finalize(self):
-        print("Importing")
+        """Passes data off to data_handler to import in into the current user's data."""
+        data = self.tree_view.get_all_elements()
+
+        if data == self.data_handler.get_categories_definitions_formatted():
+            tk.messagebox.showinfo("Nothing to Add", "No Data to be imported.")
+            self.focus_set()
+            return
+
+        if data is None:
+            tk.messagebox.showinfo("No Data", "No Data to be imported.")
+            self.focus_set()
+            return
+
+        if tk.messagebox.askyesno("Importing Data", "Are you sure you want to import this data?"
+                                                    "A backup of your existing data will be created."):
+            check = self.data_handler.import_data(data, self.data)
+            if check:
+                self.main_layout.update_categories()
+                self.main_layout.update_list()
+                tk.messagebox.showinfo("Import Success", "Data has been imported.")
+                self.destroy()
 
 
 class ExportView(tk.Toplevel):
@@ -786,22 +802,17 @@ class ExportView(tk.Toplevel):
             self.category_box.current(0)
         self.update_list()
 
-    def update_list(self, word_list: list = None, search: bool = False) -> None:
+    def update_list(self) -> None:
         """Updates the definition list from selected category or from the searched item."""
-        if search:
+        category = self.category_box.get()
+        if self.list_box.size() != 0:
             self.list_box.delete(0, self.list_box.size())
-            for definition in word_list:
-                self.list_box.insert(0, definition)
-        else:
-            category = self.category_box.get()
-            if self.list_box.size() != 0:
-                self.list_box.delete(0, self.list_box.size())
-            temp_list = self.data_handler.get_definitions_by_list(category)
-            self.list_box.category = category
-            if temp_list is not None:
-                for definition in temp_list:
-                    self.list_box.insert(tk.END, definition)
-            self.category_box.selection_clear()
+        temp_list = self.data_handler.get_definitions_by_list(category)
+        self.list_box.category = category
+        if temp_list is not None:
+            for definition in temp_list:
+                self.list_box.insert(tk.END, definition)
+        self.category_box.selection_clear()
 
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
@@ -816,7 +827,7 @@ class ExportView(tk.Toplevel):
             return
 
         if tk.messagebox.askyesno("Exporting Data", "Are you sure you want to export this data?"):
-            check = self.data_handler.export_data(self.tree_view.get_all_elements())
+            check = self.data_handler.export_data(data)
             if check:
                 tk.messagebox.showinfo("Export Success", "Data has been exported.")
                 self.destroy()

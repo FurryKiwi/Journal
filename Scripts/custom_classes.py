@@ -13,6 +13,7 @@ except ImportError:  # Python 3
 from PIL import ImageTk, Image
 import random
 from enchant import Dict, tokenize
+from enchant.tokenize import en  # Need this for building with pyinstaller, otherwise it doesn't import the en.tokenizer
 import os
 
 from Scripts.custom_calendar import Calendar

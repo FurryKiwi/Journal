@@ -177,8 +177,8 @@ class SettingSection:
 class HelpSection:
     _title = "Help Section"
     _options = ["Keyboard Shortcuts", "Functions"]
-    _functions_filepath = os.path.join(os.getcwd(), "Data", "Config", "functions_docs.txt")
-    _keyboard_filepath = os.path.join(os.getcwd(), "Data", "Config", "keyboard_docs.txt")
+    _functions_filepath = os.path.join(os.getcwd(), "Core", "Docs", "functions_docs.txt")
+    _keyboard_filepath = os.path.join(os.getcwd(), "Core", "Docs", "keyboard_docs.txt")
 
     def __init__(self, root):
         self.root = root

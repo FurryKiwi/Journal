@@ -703,6 +703,7 @@ class ImportView(tk.Toplevel):
             check = self.data_handler.import_data(data, self.data)
             if check:
                 self.main_layout.update_categories()
+                self.main_layout.category_box.current(0)
                 self.main_layout.update_list()
                 tk.messagebox.showinfo("Import Success", "Data has been imported.")
                 self.destroy()

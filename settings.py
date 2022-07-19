@@ -4,22 +4,22 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 TITLE = "Journal"
 
-ICON_IMG_ICO = "Images/journal.ico"
-ICON_IMG_PNG = "Images/journal.png"
+ICON_IMG_ICO = "Core/Images/journal.ico"
+ICON_IMG_PNG = "Core/Images/journal.png"
 
-BACKGROUND_IMAGES = {"UnderwaterBubbles": "Images/bg-0.jpeg",
-                     "LakeView": "Images/bg-1.jpeg",
-                     "Lightning": "Images/bg-2.jpeg",
-                     "UnderwaterColors": "Images/bg-3.jpeg",
-                     "Wheat Fields": "Images/bg-4.jpeg",
-                     "Waves": "Images/bg-5.jpeg",
-                     "Snowy Mountains": "Images/bg-6.jpeg",
-                     "Desert": "Images/bg-7.jpeg",
-                     "Mountain Range": "Images/bg-8.jpeg",
-                     "Ocean Coral": "Images/bg-9.jpeg",
-                     "Dolphins": "Images/bg-10.jpeg",
-                     "Winding Road": "Images/bg-11.jpeg",
-                     "Desert Mountain": "Images/bg-12.jpeg"}
+BACKGROUND_IMAGES = {"UnderwaterBubbles": "Core/Images/bg-0.jpeg",
+                     "LakeView": "Core/Images/bg-1.jpeg",
+                     "Lightning": "Core/Images/bg-2.jpeg",
+                     "UnderwaterColors": "Core/Images/bg-3.jpeg",
+                     "Wheat Fields": "Core/Images/bg-4.jpeg",
+                     "Waves": "Core/Images/bg-5.jpeg",
+                     "Snowy Mountains": "Core/Images/bg-6.jpeg",
+                     "Desert": "Core/Images/bg-7.jpeg",
+                     "Mountain Range": "Core/Images/bg-8.jpeg",
+                     "Ocean Coral": "Core/Images/bg-9.jpeg",
+                     "Dolphins": "Core/Images/bg-10.jpeg",
+                     "Winding Road": "Core/Images/bg-11.jpeg",
+                     "Desert Mountain": "Core/Images/bg-12.jpeg"}
 
 MONTHS = {"01": "Jan",
           "02": "Feb",
@@ -35,11 +35,11 @@ MONTHS = {"01": "Jan",
           "12": "Dec"}
 
 # For creating the notebook close button elements
-CLOSE_BTN = "Images/close-button.png"
-CLOSE_BTN_ACTIVE = "Images/close.png"
-CLOSE_BTN_PRESSED = "Images/close_active.png"
+CLOSE_BTN = "Core/Images/close-button.png"
+CLOSE_BTN_ACTIVE = "Core/Images/close.png"
+CLOSE_BTN_PRESSED = "Core/Images/close_active.png"
 
-TCL_PATH = "tcl_files/azure.tcl"
+TCL_PATH = "Core/tcl_files/azure.tcl"
 
 TAB_LIMIT = 4
 ENTRY_LIMIT = 20

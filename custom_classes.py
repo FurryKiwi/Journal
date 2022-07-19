@@ -27,7 +27,7 @@ import utils
 class SettingSection:
     _title = "Settings"
     _entry_limit = [str(x) for x in range(1, 36)]
-    _tab_limit = [str(x) for x in range(1, 6)]
+    _tab_limit = [str(x) for x in range(1, 5)]
     _supported_fonts = []
     _font_sizes = [str(x) for x in range(10, 20, 2)]
 
@@ -858,6 +858,7 @@ class Layout(tk.Frame):
         self.notebook = None
 
         self.create_ui()
+        self.event_biding()
 
         self.set_category_list(self.data_handler.get_last_category())
 
@@ -1199,23 +1200,23 @@ class CustomNotebook(ttk.Notebook):
         if 14 <= length <= 18:
             original = self.tab(frame)['text']
             sliced = original[:-8]
-            self.tab(frame, text=[sliced + ".."])
+            self.tab(frame, text=(sliced + "..."))
         elif 19 <= length <= 23:
             original = self.tab(frame)['text']
-            sliced = original[:-14]
-            self.tab(frame, text=[sliced + ".."])
+            sliced = original[:-12]
+            self.tab(frame, text=(sliced + "..."))
         elif 24 <= length <= 28:
             original = self.tab(frame)['text']
-            sliced = original[:-18]
-            self.tab(frame, text=[sliced + ".."])
+            sliced = original[:-16]
+            self.tab(frame, text=(sliced + "..."))
         elif 29 <= length <= 33:
             original = self.tab(frame)['text']
             sliced = original[:-22]
-            self.tab(frame, text=[sliced + ".."])
+            self.tab(frame, text=(sliced + "..."))
         elif 34 <= length <= 35:
             original = self.tab(frame)['text']
             sliced = original[:-23]
-            self.tab(frame, text=[sliced + ".."])
+            self.tab(frame, text=(sliced + "..."))
 
     def add_tab(self, category: str, definition: str) -> None:
         """Calls the create_tab method to create elements and adds them to the notebook."""

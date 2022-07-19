@@ -81,10 +81,6 @@ class Journal:
         except FileNotFoundError:
             tk.messagebox.showinfo("No File", "Please select a file to open.")
 
-    def event_biding(self) -> None:
-        self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
-        self.root.bind("<Control-f>", lambda event=None: self.search_engine.create_view())
-
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?"):
             self.main_layout.notebook.close_tabs(log_out=True)
@@ -118,6 +114,8 @@ class Journal:
         self.root = tk.Tk()
         self.root.tk.call("source", self._tcl_path)
         self.root.tk.call("set_theme", "dark")
+        self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
+        self.root.bind("<Control-f>", lambda event=None: self.search_engine.create_view())
 
         # Create the alert system
         self.alert_system = AlertSystem(self.root)
@@ -143,14 +141,10 @@ class Journal:
         # Sets the category to the first one and populates the listbox
         self.main_layout.update_list()
 
-        # Calls the main_layout event bidding
-        self.main_layout.event_biding()
-
         # Force windows to set the focus to the main window of the application
         self.root.focus_force()
 
-        # Event checking and mainloop()
-        self.event_biding()
+        # Mainloop
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         self.root.mainloop()
 

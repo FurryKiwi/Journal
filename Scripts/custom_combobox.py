@@ -14,8 +14,6 @@ Updated by Dominic Kexel to use Tkinter and ttk instead of tkinter and tkinter.t
 Licensed same as original (not specified?), or public domain, whichever is less restrictive.
 """
 
-__version__ = "1.1"
-
 
 class AutocompleteCombobox(ttk.Combobox):
 

@@ -10,12 +10,12 @@ except ImportError:  # Python 3
 
 # BUILT IN PYTHON 3.10 VERSION
 
-import utils
-from custom_classes import Layout, BackGround, HelpSection, SettingSection, SearchEngine, ExportView, ImportView
-from settings import *
-from data_model import DataHandler, LoginHandler
-from login_page import LoginPage
-from alert_system import AlertSystem
+import Scripts.utils as utils
+from Scripts.custom_classes import Layout, BackGround, HelpSection, SettingSection, SearchEngine, ExportView, ImportView
+from Scripts.settings import *
+from Scripts.data_model import DataHandler, LoginHandler
+from Scripts.login_page import LoginPage
+from Scripts.alert_system import AlertSystem
 
 
 class Journal:

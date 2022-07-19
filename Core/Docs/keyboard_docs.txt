@@ -3,7 +3,7 @@ Key-End: Closes the opened tab in the notebook.
 Alt-F4: Closes the program.
 Ctrl-C: Copies the text in the text area.
 Ctrl-V: Pastes the text in the text area.
-Key-Tab: Tabs through the widgets as well in the text.
+Key-Tab: Tabs through the widgets.
 Key-Arrows: To go through the widgets, definitions and such.
 Key-Enter: Mimics the use of save buttons instead of clicking.
 Ctrl-Tab: Will get the cursor to reset back to the main-window after closing a notebook tab.

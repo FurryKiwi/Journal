@@ -6,3 +6,5 @@ Search Feature: Can be used to search through the user's definition list. At thi
 Entry length: The character length of an entry is set to 20 for rendering purposes.
 Users may change it for longer definition entries but not recommended.
 Copy/Paste Definitions: Ability to copy a single definition from one category to another. Used by the right-click function.
+Import/Export: Ability for a user to export or import user's data into their own database, with the option of adding in those entries into any of their existing categories.
+Changeable backgrounds: For the user's that want to see different backgrounds. The program already picks a random background everytime you run the program.

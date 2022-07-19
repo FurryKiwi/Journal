@@ -4,11 +4,12 @@ I built it to keep track of notes of what I'm studying and learning.
 
 # Features
 - Settings page.
-- Documentation/Help page for reference to keyboard shortcuts.
+- Documentation/Help page for reference to keyboard shortcuts and the features the program has.
 - Search function to quickly search through the listbox.
 - Searchable combobox for finding the font you want.
 - Manual and auto-backup feature so user won't lose any entries.
 - Restore feature if data gets corrupted/lost or deleted.
+- Import and export feature for user's data.
 
 # Credits
 Credit to rdbende for the azure theme, I've slightly modified and taken out the things the program doesn't use.

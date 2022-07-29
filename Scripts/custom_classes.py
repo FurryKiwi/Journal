@@ -1,5 +1,6 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
 import json
+import threading
 
 try:
     import Tkinter as tk
@@ -280,12 +281,13 @@ class TextArea(tk.Text):
         self.tk.call("rename", self._w, self._proxy)
         self.tk.createcommand(self._w, self._proxy_cmd)
         self.tag_configure('hl', foreground='red')
-        self.bind('<<TextModified>>', self.on_modify)
-        self.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
 
         self.selected_word = ""
         self.suggested_words = {}
         self.after_id = None
+        self.new_thread = None
+        self.flag = False
+        self.t = []
 
         self.insert(tk.END, self.data_handler.get_text_by_definition(category, definition))
 
@@ -296,6 +298,9 @@ class TextArea(tk.Text):
         scroll_bar.pack(in_=text_frame, side='right', fill='y', expand=False)
         self.pack(in_=text_frame, side='left', fill='both', expand=True, padx=4)
 
+        self.bind('<<TextModified>>', self.on_modify)
+        self.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
+
     def pop_up_menu(self, event):
         try:
             self.selected_word = self.get(tk.SEL_FIRST, tk.SEL_LAST)
@@ -304,6 +309,9 @@ class TextArea(tk.Text):
         # Check if multiple words are selected via having a space in them.
         if " " in self.selected_word:
             return
+        if "." in self.selected_word:
+            self.flag = True
+            self.selected_word = self.selected_word[:-1]
         # Check if the selected is None
         if self.selected_word != "None":
             menu = tk.Menu(self, tearoff=0)
@@ -337,13 +345,19 @@ class TextArea(tk.Text):
 
     def replace_word(self, word: str):
         try:
-            self.replace(tk.SEL_FIRST, tk.SEL_LAST, word)
+            if self.flag:
+                self.replace(tk.SEL_FIRST, f"{tk.SEL_LAST}-1c", word)
+            else:
+                self.replace(tk.SEL_FIRST, tk.SEL_LAST, word)
+            self.flag = False
         except tk.TclError:
             pass
 
     def add_to_dict(self, word: str):
         self.replace(tk.SEL_FIRST, tk.SEL_LAST, word)
-        self.corpus.add(word)
+        check = self.corpus.is_added(word)
+        if not check:
+            self.corpus.add(word)
 
     def _proxy_cmd(self, command, *args):
         """Intercept the Tk commands to the text widget and if any of the content
@@ -353,7 +367,7 @@ class TextArea(tk.Text):
             cmd = cmd + args
         try:
             result = self.tk.call(cmd)
-            if command in ('insert', 'delete', 'replace'):
+            if command in ('insert', 'delete'):
                 self.event_generate('<<TextModified>>')
             return result
         except tk.TclError as e:
@@ -365,23 +379,41 @@ class TextArea(tk.Text):
         try:
             if self.after_id:
                 self.after_cancel(self.after_id)
-            self.after_id = self.after(250, self.on_modified)
+            self.after_id = self.after(700, lambda: self.make_thread(self.on_modified))
         except IndexError:
             pass
 
+    def is_double_space(self, input_string):
+        new_string = input_string.replace("  ", " ")
+        self.replace("1.0 linestart", "1.0 lineend", new_string)
+
+    def spell_check(self):
+        data = self.get(f"1.0 linestart", "1.0 lineend")
+        self.is_double_space(data)
+        for word, pos in self.tokenize(data):
+            check = self.corpus.check(word)
+            if not check:
+                start = f"1.{pos}"
+                end = f"1.{pos + len(word)}"
+                self.tag_add("hl", start, end)
+                self.suggested_words.update({word: self.corpus.suggest(word)})
+
+    def make_thread(self, func):
+        self.new_thread = threading.Thread(target=func, daemon=True)
+        self.new_thread.start()
+
     def on_modified(self):
         self.after_id = None
-        self.tag_remove('hl', '1.0', 'end')
-        num_lines = [int(val) for val in self.index("end").split(".")][0]
-        for line in range(1, num_lines):
-            data = self.get(f"{line}.0 linestart", f"{line}.0 lineend")
-            for word, pos in self.tokenize(data):
-                check = self.corpus.check(word)
-                if not check:
-                    start = f"{line}.{pos}"
-                    end = f"{line}.{pos + len(word)}"
-                    self.tag_add("hl", start, end)
-                    self.suggested_words.update({word: self.corpus.suggest(word)})
+
+        data = self.get(f"1.0 linestart", "1.0 lineend")
+        for word, pos in self.tokenize(data):
+            check = self.corpus.check(word)
+            if not check:
+                start = f"1.{pos}"
+                end = f"1.{pos + len(word)}"
+                self.tag_add("hl", start, end)
+
+                self.suggested_words.update({word: self.corpus.suggest(word)})
 
 
 class TabArea(tk.Frame):
@@ -422,6 +454,10 @@ class TabArea(tk.Frame):
                                                                         self.font_size_choices.get(), category,
                                                                         definition))
 
+        self.spell_check_btn = ttk.Button(top_frame, text="Spell Check", style="Accent.TButton",
+                                          command=self.spell_check)
+        self.spell_check_btn.pack(side='left', pady=4, padx=4)
+
         # Create the text area
         self.text_area = TextArea(text_frame, self.data_handler, category, definition, self.alert_system,
                                   font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
@@ -445,6 +481,9 @@ class TabArea(tk.Frame):
             self.notebook.get_tab_frames([definition]), save=True))
 
         self.set_combobox(category, definition)
+
+    def spell_check(self):
+        self.text_area.make_thread(self.text_area.spell_check)
 
     def save_text(self, category: str, definition: str, text: str) -> None:
         self.data_handler.add_text(category, definition, text)

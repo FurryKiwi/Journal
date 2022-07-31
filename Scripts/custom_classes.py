@@ -574,8 +574,7 @@ class SearchEngine:
         if word == '':
             return []
 
-        word = word.lstrip()
-        word = word.rstrip()
+        word = word.strip()
 
         word_case_fold = word.casefold()
         word_capital = word.capitalize()

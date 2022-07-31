@@ -132,12 +132,6 @@ def set_window(root, w, h, title, resize: bool = False) -> None:
     root.focus_set()
 
 
-def strip_whitespace(entry: str) -> str:
-    entry = entry.rstrip()
-    entry = entry.lstrip()
-    return entry
-
-
 def stay_on_top(win):
     win.lift()
     win.focus_set()

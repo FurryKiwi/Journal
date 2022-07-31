@@ -65,7 +65,7 @@ class LoginHandler:
         if new_user == '':
             return False
 
-        new_user = utils.strip_whitespace(new_user)
+        new_user = new_user.strip()
 
         if not utils.check_folder_exists(os.path.join(self._users_folder_path, new_user)):
             # CWD/Data/Users/Username-folder/config_pref.json
@@ -303,7 +303,7 @@ class DataHandler:
         # Check if adding a category to an existing category
         if entry in self.data.keys():
             return False
-        entry = utils.strip_whitespace(entry)
+        entry = entry.strip()
         try:
             if category in self.data.keys():
                 # If renaming a category
@@ -331,7 +331,7 @@ class DataHandler:
         # Check if adding a definition that exists
         if entry in self.data[category]:
             return False
-        entry = utils.strip_whitespace(entry)
+        entry = entry.strip()
         try:
             if definition in self.data[category]:
                 # If renaming an existing definition

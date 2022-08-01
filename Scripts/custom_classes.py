@@ -8,7 +8,7 @@ try:
 except ImportError:  # Python 3
     import tkinter as tk
     from tkinter import ttk
-    from tkinter import messagebox
+    from tkinter import messagebox, filedialog
     import tkinter.font as tkfont
 
 from PIL import ImageTk, Image
@@ -31,6 +31,7 @@ class SettingSection:
     _tab_limit = [str(x) for x in range(1, 5)]
     _supported_fonts = []
     _font_sizes = [str(x) for x in range(10, 20, 2)]
+    _image_path = os.path.join(os.getcwd(), "Core", "User Added Images")
 
     def __init__(self, root, data_handler, canvas):
         self.root = root
@@ -48,7 +49,7 @@ class SettingSection:
         for i in tkfont.families():
             self._supported_fonts.append(i)
 
-        self.images = [k for k in BACKGROUND_IMAGES.keys()]
+        self.images = [k for k in self.canvas.image_loc.keys()]
         self.create_top_window_view()
 
     def on_closing(self):
@@ -103,25 +104,87 @@ class SettingSection:
 
         tk.Label(bottom_frame, text="Change Background:", font=DEFAULT_FONT).pack(side='top', padx=4,
                                                                                   pady=4)
+
         self.background = ttk.Combobox(bottom_frame, values=self.images, font=DEFAULT_FONT,
                                        state='readonly')
-        self.background.pack(side='top', anchor='nw', pady=4, padx=4)
+        self.background.pack(side='left', anchor='nw', pady=4, padx=4)
+        self.set_background_combobox()
+
+        ttk.Button(bottom_frame, text="Add Image", style="Accent.TButton",
+                   command=lambda: self.add_background_view()).pack(side='left', padx=4, pady=4)
 
         # Command biding
         self.font_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
         self.font_choices.bind("<<FontChange>>", lambda event=None: self.update_database())
         self.font_size_choices.bind("<<ComboboxSelected>>", lambda event=None: self.update_database())
         self.background.bind("<<ComboboxSelected>>", lambda event=None: self.change_background())
+        self.background.bind("<ButtonPress-3>", lambda event=None: self.pop_up_menu(event))
 
         top_frame.pack(side='top')
         middle_frame.pack(side='top')
         middle_2_frame.pack(side='top')
         bottom_frame.pack(side='top')
 
+    def set_background_combobox(self):
+        for index, i_d in enumerate(self.background['values']):
+            if i_d == self.canvas.image_name:
+                self.background.current(index)
+
     def change_background(self):
-        new_image = BACKGROUND_IMAGES[self.background.get()]
+        new_image = self.canvas.image_loc[self.background.get()]
         self.canvas.change_background(new_image)
         self.background.selection_clear()
+
+    def add_background_view(self):
+        try:
+            filepath = tk.filedialog.askopenfilename(filetypes=[("jpeg", ".jpeg"), ("png", ".png"), ("jpg", ".jpg")])
+            if filepath == '':
+                tk.messagebox.showinfo("No File", "Please select a file to open.")
+            top_window, entry = utils.create_pop_up("Name the Image", self.root, self.data_handler.entry_limit)
+            ttk.Button(top_window, text="Save Image", style="Accent.TButton", width=24,
+                       command=lambda: self.save_new_image(filepath, entry.get(), top_window)).pack(side='top', padx=4, pady=4)
+        except FileNotFoundError:
+            tk.messagebox.showinfo("No File", "Please select a file to open.")
+
+    def save_new_image(self, filepath: str, image_name: str, top_window: tk.Toplevel):
+        # Check if image name matches one of the default images
+        if image_name in BACKGROUND_IMAGES.keys():
+            tk.messagebox.showinfo("Invalid Name", "Image can not be save as one of the default image names.")
+            top_window.focus_set()
+            return
+        if image_name in self.canvas.image_loc.keys():
+            tk.messagebox.showinfo("Invalid Name", "That name already exists.")
+            top_window.focus_set()
+            return
+        utils.check_folder_and_create(self._image_path)
+        image = Image.open(filepath)
+        file_extension = os.path.splitext(filepath)
+        new_image_path = os.path.join(self._image_path, (image_name + file_extension[1]))
+        image.save(new_image_path)
+        self.canvas.image_loc.update({image_name: new_image_path})
+        self.update_background_combobox()
+        top_window.destroy()
+        self.window.focus_force()
+
+    def pop_up_menu(self, event):
+        if self.background.get() not in BACKGROUND_IMAGES.keys():
+            menu = tk.Menu(self.window, tearoff=0)
+            menu.add_command(label="Delete", command=self.delete_background)
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+
+    def delete_background(self):
+        if tk.messagebox.askyesno("Deleting Image", "Are you sure you want to remove this image?"):
+            image_path_to_delete = self.canvas.image_loc[self.background.get()]
+            os.remove(image_path_to_delete)
+            del self.canvas.image_loc[self.background.get()]
+            self.canvas.save_image_paths()
+            self.canvas.reload_image()
+            self.update_background_combobox()
+            self.set_background_combobox()
+            self.window.focus_force()
 
     def update_database(self):
         self.data_handler.entry_limit = int(self.limit_entry.get())
@@ -173,6 +236,9 @@ class SettingSection:
                 else:
                     if i_d == selection:
                         self.font_size_choices.current(index)
+
+    def update_background_combobox(self):
+        self.background['values'] = [k for k in self.canvas.image_loc.keys()]
 
 
 class HelpSection:
@@ -234,17 +300,19 @@ class HelpSection:
 
 class BackGround(tk.Canvas):
     _bg_image = None
+    _image_locations_path = os.path.join(os.getcwd(), "Core", "Docs", "image_paths.json")
 
     def __init__(self, root, *args, **kwargs):
         tk.Canvas.__init__(self, root, *args, **kwargs)
         self.bind("<Configure>", self.on_resize)
-        self.images_paths = [v for v in BACKGROUND_IMAGES.values()]
-        self._image_path = random.choice(self.images_paths)
-        image = Image.open(self._image_path).resize((self.winfo_width(), self.winfo_height()), Image.ANTIALIAS)
-        self.background_img = ImageTk.PhotoImage(image)
+        self.image_loc = None
+        self.images_paths = None
+        self._image_path = None
+        self.image_name = None
+        self.background_img = None
         self.image = None
-        self.pack(expand=True, fill="both")
-        self.drawn = self.create_image(0, 0, image=self.background_img, anchor='nw')
+        self.drawn = None
+        self.reload_image()
 
     def on_resize(self, event):
         new_size = Image.open(self._image_path).resize((event.width, event.height), Image.ANTIALIAS)
@@ -254,18 +322,36 @@ class BackGround(tk.Canvas):
 
         self.itemconfig(self.drawn, image=self.image)
 
+    def reload_image(self):
+        self.image_loc = utils.read_json(self._image_locations_path, BACKGROUND_IMAGES)
+        self.images_paths = [v for v in self.image_loc.values()]
+        self._image_path = random.choice(self.images_paths)
+        self.image_name = [k for k, v in self.image_loc.items() if self._image_path == v][0]
+        image = Image.open(self._image_path).resize((self.winfo_width(), self.winfo_height()), Image.ANTIALIAS)
+        self.background_img = ImageTk.PhotoImage(image)
+        self.image = None
+        self.pack(expand=True, fill="both")
+        self.drawn = self.create_image(0, 0, image=self.background_img, anchor='nw')
+
     def change_background(self, image: str) -> None:
         # Image is the file path to the selected image.
         height = self.winfo_height()
         width = self.winfo_width()
         # Reset the image path
         self._image_path = image
+        # Reset the image name
+        self.image_name = [k for k, v in self.image_loc.items() if self._image_path == v][0]
         # Resize to the screen
         new_size = Image.open(image).resize((width, height), Image.ANTIALIAS)
         # Convert to photo image
         self.image = ImageTk.PhotoImage(new_size)
         # Set the canvas to the new image
         self.itemconfig(self.drawn, image=self.image)
+
+    def save_image_paths(self):
+        """Used to dump any added images into the database to the json file before closing the program,
+        or logging out."""
+        utils.dump_json(self._image_locations_path, self.image_loc)
 
 
 class TextArea(tk.Text):

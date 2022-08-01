@@ -7,6 +7,7 @@ TITLE = "Journal"
 ICON_IMG_ICO = "Core/Images/journal.ico"
 ICON_IMG_PNG = "Core/Images/journal.png"
 
+# This is for if the image_paths.json file gets deleted or corrupted.
 BACKGROUND_IMAGES = {"UnderwaterBubbles": "Core/Images/bg-0.jpeg",
                      "LakeView": "Core/Images/bg-1.jpeg",
                      "Lightning": "Core/Images/bg-2.jpeg",

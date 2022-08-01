@@ -83,6 +83,7 @@ class Journal:
 
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?"):
+            self.canvas.save_image_paths()
             self.main_layout.notebook.close_tabs(log_out=True)
             self.data_handler.set_last_category(self.main_layout.category_box.get())
             self.data_handler.update_json()
@@ -94,6 +95,7 @@ class Journal:
     def _on_closing(self) -> None:
         """Handles saving and quiting."""
         if tk.messagebox.askyesno("Quit", "Do you want to quit?"):
+            self.canvas.save_image_paths()
             self.main_layout.notebook.close_tabs(log_out=True)
             self.data_handler.set_last_category(self.main_layout.category_box.get())
             self.data_handler.update_json()

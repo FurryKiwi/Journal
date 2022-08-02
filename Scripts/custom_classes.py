@@ -1,6 +1,4 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
-import json
-import threading
 
 try:
     import Tkinter as tk
@@ -11,6 +9,8 @@ except ImportError:  # Python 3
     from tkinter import messagebox, filedialog
     import tkinter.font as tkfont
 
+import json
+import threading
 from PIL import ImageTk, Image
 import random
 from enchant import Dict, tokenize
@@ -49,7 +49,6 @@ class SettingSection:
         for i in tkfont.families():
             self._supported_fonts.append(i)
 
-        self.images = [k for k in self.canvas.image_loc.keys()]
         self.create_top_window_view()
 
     def on_closing(self):
@@ -105,7 +104,8 @@ class SettingSection:
         tk.Label(bottom_frame, text="Change Background:", font=DEFAULT_FONT).pack(side='top', padx=4,
                                                                                   pady=4)
 
-        self.background = ttk.Combobox(bottom_frame, values=self.images, font=DEFAULT_FONT,
+        self.background = ttk.Combobox(bottom_frame, values=[k for k in self.canvas.image_loc.keys()],
+                                       font=DEFAULT_FONT,
                                        state='readonly')
         self.background.pack(side='left', anchor='nw', pady=4, padx=4)
         self.set_background_combobox()
@@ -140,9 +140,12 @@ class SettingSection:
             filepath = tk.filedialog.askopenfilename(filetypes=[("jpeg", ".jpeg"), ("png", ".png"), ("jpg", ".jpg")])
             if filepath == '':
                 tk.messagebox.showinfo("No File", "Please select a file to open.")
-            top_window, entry = utils.create_pop_up("Name the Image", self.root, self.data_handler.entry_limit)
-            ttk.Button(top_window, text="Save Image", style="Accent.TButton", width=24,
-                       command=lambda: self.save_new_image(filepath, entry.get(), top_window)).pack(side='top', padx=4, pady=4)
+            else:
+                top_window, entry = utils.create_pop_up("Name the Image", self.root, self.data_handler.entry_limit)
+                ttk.Button(top_window, text="Save Image", style="Accent.TButton", width=24,
+                           command=lambda: self.save_new_image(filepath, entry.get(), top_window)).pack(side='top',
+                                                                                                        padx=4,
+                                                                                                        pady=4)
         except FileNotFoundError:
             tk.messagebox.showinfo("No File", "Please select a file to open.")
 
@@ -152,19 +155,25 @@ class SettingSection:
             tk.messagebox.showinfo("Invalid Name", "Image can not be save as one of the default image names.")
             top_window.focus_set()
             return
+        # Check if image name matches one that's already loaded.
         if image_name in self.canvas.image_loc.keys():
             tk.messagebox.showinfo("Invalid Name", "That name already exists.")
             top_window.focus_set()
             return
+
         utils.check_folder_and_create(self._image_path)
+        self.save_image(filepath, image_name)
+
+        self.update_background_combobox()
+        top_window.destroy()
+        self.window.focus_force()
+
+    def save_image(self, filepath: str, image_name: str) -> None:
         image = Image.open(filepath)
         file_extension = os.path.splitext(filepath)
         new_image_path = os.path.join(self._image_path, (image_name + file_extension[1]))
         image.save(new_image_path)
         self.canvas.image_loc.update({image_name: new_image_path})
-        self.update_background_combobox()
-        top_window.destroy()
-        self.window.focus_force()
 
     def pop_up_menu(self, event):
         if self.background.get() not in BACKGROUND_IMAGES.keys():
@@ -261,7 +270,7 @@ class HelpSection:
         utils.set_window(self.window, 600, 500, self._title)
         tk.Label(self.window, text="Welcome to the Help Section", font=DEFAULT_FONT_UNDERLINE_BOLD).pack(side='top')
         self.combo_box = ttk.Combobox(self.window, values=self._options, state="readonly", font=DEFAULT_FONT)
-        self.combo_box.pack(pady=4, padx=4)
+        self.combo_box.pack(side='top', pady=4, padx=4)
         self.combo_box.current(0)
         self.combo_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_text())
 
@@ -312,13 +321,12 @@ class BackGround(tk.Canvas):
         self.background_img = None
         self.image = None
         self.drawn = None
+
         self.reload_image()
 
     def on_resize(self, event):
-        new_size = Image.open(self._image_path).resize((event.width, event.height), Image.ANTIALIAS)
-
-        bg = ImageTk.PhotoImage(new_size)
-        self.image = bg  # Need this so python doesn't get rid of it before it's drawn to the screen
+        resize_image = self.resize_image(self._image_path)
+        self.image = ImageTk.PhotoImage(resize_image)
 
         self.itemconfig(self.drawn, image=self.image)
 
@@ -327,26 +335,26 @@ class BackGround(tk.Canvas):
         self.images_paths = [v for v in self.image_loc.values()]
         self._image_path = random.choice(self.images_paths)
         self.image_name = [k for k, v in self.image_loc.items() if self._image_path == v][0]
-        image = Image.open(self._image_path).resize((self.winfo_width(), self.winfo_height()), Image.ANTIALIAS)
-        self.background_img = ImageTk.PhotoImage(image)
-        self.image = None
+        resize_image = self.resize_image(self._image_path)
+        self.image = ImageTk.PhotoImage(resize_image)
         self.pack(expand=True, fill="both")
-        self.drawn = self.create_image(0, 0, image=self.background_img, anchor='nw')
+        self.drawn = self.create_image(0, 0, image=self.image, anchor='nw')
 
-    def change_background(self, image: str) -> None:
-        # Image is the file path to the selected image.
-        height = self.winfo_height()
-        width = self.winfo_width()
+    def change_background(self, image_path: str) -> None:
         # Reset the image path
-        self._image_path = image
+        self._image_path = image_path
         # Reset the image name
         self.image_name = [k for k, v in self.image_loc.items() if self._image_path == v][0]
         # Resize to the screen
-        new_size = Image.open(image).resize((width, height), Image.ANTIALIAS)
+        resize_image = self.resize_image(image_path)
         # Convert to photo image
-        self.image = ImageTk.PhotoImage(new_size)
+        self.image = ImageTk.PhotoImage(resize_image)
         # Set the canvas to the new image
         self.itemconfig(self.drawn, image=self.image)
+
+    def resize_image(self, image_path: str) -> Image.Image:
+        image = Image.open(image_path)
+        return image.resize((self.winfo_width(), self.winfo_height()), Image.LANCZOS)
 
     def save_image_paths(self):
         """Used to dump any added images into the database to the json file before closing the program,
@@ -759,11 +767,11 @@ class ImportView(tk.Toplevel):
         ttk.Button(right, style="Accent.TButton", text="Remove Selected", width=18,
                    command=lambda: self.tree_view.remove_elements()).pack(side='top', pady=4, padx=4)
 
-        ttk.Button(right, style="Accent.TButton", text="Export All", width=18,
+        ttk.Button(right, style="Accent.TButton", text="Import All", width=18,
                    command=lambda: self.tree_view.add_all_elements(self.formatted_data, importing=True)).pack(
             side='top', pady=4, padx=4)
 
-        ttk.Button(right, style="Accent.TButton", text="Export Selected", width=18,
+        ttk.Button(right, style="Accent.TButton", text="Import Selected", width=18,
                    command=lambda: self.add_selected()).pack(side='top', pady=4, padx=4)
         ttk.Button(right, style="Accent.TButton", text="Finish", width=18,
                    command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
@@ -819,14 +827,17 @@ class ImportView(tk.Toplevel):
             self.focus_set()
             return
 
-        if data is None:
+        if data is None or data == {}:
             tk.messagebox.showinfo("No Data", "No Data to be imported.")
             self.focus_set()
             return
 
-        if tk.messagebox.askyesno("Importing Data", "Are you sure you want to import this data?"
-                                                    "A backup of your existing data will be created."):
-            check = self.data_handler.import_data(data, self.data)
+        if tk.messagebox.askyesno("Importing Data", "Are you sure you want to import this data?"):
+            backup = False
+            if tk.messagebox.askyesno("Back Up Data", "Do you want to create a new backup of your existing data? "
+                                      "Any old backups will be overwritten!"):
+                backup = True
+            check = self.data_handler.import_data(data, self.data, backup)
             if check:
                 self.main_layout.update_categories()
                 self.main_layout.category_box.current(0)
@@ -913,6 +924,8 @@ class ExportView(tk.Toplevel):
 
     def add_selected(self):
         category = self.category_box.get()
+        if category == "Create a Category":
+            return
         indexes = self.list_box.curselection()
         elements = [self.list_box.get(i) for i in indexes]
 
@@ -948,7 +961,7 @@ class ExportView(tk.Toplevel):
     def finalize(self):
         """This will send all data to data_handler to export the proper data to a json file."""
         data = self.tree_view.get_all_elements()
-        if data is None:
+        if data is None or data == {}:
             tk.messagebox.showinfo("No Data", "No Data to be exported.")
             self.focus_set()
             return

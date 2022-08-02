@@ -217,10 +217,11 @@ class DataHandler:
         utils.dump_json(self._data_save_path, self.data)
 
     # Import/Export Functions
-    def import_data(self, data: dict, orig_data: dict):
+    def import_data(self, data: dict, orig_data: dict, backup: bool):
         """Imports only the selected data the user wants to import."""
         try:
-            self.backup_data()
+            if backup:
+                self.backup_data()
             new_data = self.data.copy()
             for key, values in data.items():
                 for cat, definitions in orig_data.items():

@@ -61,7 +61,7 @@ def create_json(filename, data: dict) -> dict:
     with open(filename, 'w') as file:
         json.dump(data, file, indent=4)
         file.truncate()
-        return data
+        return data.copy()
 
 
 def create_pop_up(title: str, root: tk.Tk, entry_limit: int) -> (tk.Toplevel, tk.Entry):

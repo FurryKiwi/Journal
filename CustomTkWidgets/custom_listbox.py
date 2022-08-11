@@ -12,7 +12,8 @@ class CustomListBox(tk.Listbox):
         kw['selectmode'] = kw.pop('selectmode')
         tk.Listbox.__init__(self, root, **kw)
         self.root = root
-        self.data_handler = data_handler
+        if data_handler is not None:
+            self.data_handler = data_handler
         self.category = category
         self.bind('<Button-1>', self.set_current)
         self.bind('<Control-1>', self.toggle_selection)
@@ -24,6 +25,8 @@ class CustomListBox(tk.Listbox):
         self.unlock_shifting()
 
     def save_new_order(self):
+        if self.data_handler is None:
+            return
         new_list_order = list(self.get(0, tk.END))
         self.data_handler.update_listbox(new_list_order, self.category)
 

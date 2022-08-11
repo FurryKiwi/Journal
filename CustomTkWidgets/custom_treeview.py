@@ -7,9 +7,8 @@ except ImportError:  # Python 3
 
 
 class TreeView(ttk.Treeview):
-    def __init__(self, top_window, data_handler, **kwargs):
+    def __init__(self, top_window, **kwargs):
         ttk.Treeview.__init__(self, top_window, **kwargs)
-        self.data_handler = data_handler
         self.parents = []
         self.children_of_parents = []
         self.item_selected = None

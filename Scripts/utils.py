@@ -135,3 +135,10 @@ def set_window(root, w, h, title, resize: bool = False) -> None:
 def stay_on_top(win):
     win.lift()
     win.focus_set()
+
+
+def convert_image_to_base64():
+    import base64
+    with open(CLOSE_BTN_PRESSED, "rb") as image2string:
+        converted_string = base64.b64encode(image2string.read())
+    print(converted_string)

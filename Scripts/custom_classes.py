@@ -17,10 +17,11 @@ from enchant import Dict, tokenize
 from enchant.tokenize import en  # Need this for building with pyinstaller, otherwise it doesn't import the en.tokenizer
 import os
 
-from Scripts.custom_calendar import Calendar
-from Scripts.custom_combobox import AutocompleteCombobox
-from Scripts.custom_listbox import CustomListBox
-from Scripts.custom_treeview import TreeView
+from CustomTkWidgets.custom_calendar import Calendar
+from CustomTkWidgets.custom_combobox import AutocompleteCombobox
+from CustomTkWidgets.custom_listbox import CustomListBox
+from CustomTkWidgets.custom_treeview import TreeView
+from CustomTkWidgets.custom_notebook import DefaultNotebook
 from Scripts.settings import *
 import Scripts.utils as utils
 
@@ -381,7 +382,6 @@ class TextArea(tk.Text):
         self.after_id = None
         self.new_thread = None
         self.flag = False
-        self.t = []
 
         self.insert(tk.END, self.data_handler.get_text_by_definition(category, definition))
 
@@ -390,7 +390,6 @@ class TextArea(tk.Text):
         self.config(yscrollcommand=scroll_bar.set)
 
         scroll_bar.pack(in_=text_frame, side='right', fill='y', expand=False)
-        self.pack(in_=text_frame, side='left', fill='both', expand=True, padx=4)
 
         self.bind('<<TextModified>>', self.on_modify)
         self.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
@@ -465,7 +464,7 @@ class TextArea(tk.Text):
                 self.event_generate('<<TextModified>>')
             return result
         except tk.TclError as e:
-            self.alert_system.show_alert(("Highlight a text in order to spell check it.", "White"))
+            return
 
     def on_modify(self, event):
         """Rate limit the spell-checking with a 100ms delay. If another modification
@@ -519,12 +518,13 @@ class TabArea(tk.Frame):
         self.data_handler = data_handler
         self.notebook = notebook
         self.alert_system = alert_system
+        self.checklist = None
 
         for i in tkfont.families():
             self._supported_fonts.append(i)
 
         top_frame = tk.Frame(self)
-        text_frame = tk.Frame(self, borderwidth=1, relief="sunken")
+        self.text_frame = tk.Frame(self, borderwidth=1, relief="sunken")
         bottom_frame = tk.Frame(self)
 
         # Top frame widgets
@@ -553,9 +553,10 @@ class TabArea(tk.Frame):
         self.spell_check_btn.pack(side='left', pady=4, padx=4)
 
         # Create the text area
-        self.text_area = TextArea(text_frame, self.data_handler, category, definition, self.alert_system,
+        self.text_area = TextArea(self.text_frame, self.data_handler, category, definition, self.alert_system,
                                   font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
                                   undo=True)
+        self.text_area.pack(side='right', padx=4)
 
         # Bottom Frame layout
         time_stamp = ttk.Label(bottom_frame,
@@ -569,7 +570,7 @@ class TabArea(tk.Frame):
 
         top_frame.pack(side='top', fill='x')
         bottom_frame.pack(side="bottom", fill='x')
-        text_frame.pack(side='top', fill='both', expand=True)
+        self.text_frame.pack(side='top', fill='both', expand=True)
 
         self.text_area.bind("<End>", lambda event=None: self.notebook.close_tabs(
             self.notebook.get_tab_frames([definition]), save=True))
@@ -777,19 +778,10 @@ class ImportView(tk.Toplevel):
                    command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
 
         tk.Label(left, text="Existing Data:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
-        self.tree_view = TreeView(left, self.data_handler)
+        self.tree_view = TreeView(left)
         self.tree_view.add_default_items(self.data_handler.get_categories_definitions_formatted(), importing=True,
                                          exception=True)
         self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
-
-    def add_selected(self):
-        category = self.tree_view.item_selected
-        if category is None:
-            category = self.category_box.get()
-        indexes = self.list_box.curselection()
-        elements = [self.list_box.get(i) for i in indexes]
-
-        self.tree_view.add_elements(category, elements)
 
     def set_category_list(self, category: str = None) -> None:
         """Set the category list to specified category or to the first one in the list."""
@@ -817,6 +809,15 @@ class ImportView(tk.Toplevel):
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
         self.category_box.config(values=[item for item in self.data.keys()])
+
+    def add_selected(self):
+        category = self.tree_view.item_selected
+        if category is None:
+            category = self.category_box.get()
+        indexes = self.list_box.curselection()
+        elements = [self.list_box.get(i) for i in indexes]
+
+        self.tree_view.add_elements(category, elements)
 
     def finalize(self):
         """Passes data off to data_handler to import in into the current user's data."""
@@ -919,17 +920,8 @@ class ExportView(tk.Toplevel):
                    command=lambda: self.finalize()).pack(side='top', pady=4, padx=4)
 
         tk.Label(left, text="Preview:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
-        self.tree_view = TreeView(left, self.data_handler)
+        self.tree_view = TreeView(left)
         self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
-
-    def add_selected(self):
-        category = self.category_box.get()
-        if category == "Create a Category":
-            return
-        indexes = self.list_box.curselection()
-        elements = [self.list_box.get(i) for i in indexes]
-
-        self.tree_view.add_elements(category, elements)
 
     def set_category_list(self, category: str = None) -> None:
         """Set the category list to specified category or to the first one in the list."""
@@ -957,6 +949,15 @@ class ExportView(tk.Toplevel):
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
         self.category_box.config(values=self.data_handler.get_categories_by_list())
+
+    def add_selected(self):
+        category = self.category_box.get()
+        if category == "Create a Category":
+            return
+        indexes = self.list_box.curselection()
+        elements = [self.list_box.get(i) for i in indexes]
+
+        self.tree_view.add_elements(category, elements)
 
     def finalize(self):
         """This will send all data to data_handler to export the proper data to a json file."""
@@ -1313,49 +1314,21 @@ class Layout(tk.Frame):
         self.category_box.config(values=self.data_handler.get_categories_by_list())
 
 
-class CustomNotebook(ttk.Notebook):
+class CustomNotebook(DefaultNotebook):
 
     def __init__(self, root, alert_system, data_handler, *args, **kwargs):
         kwargs["style"] = "TNotebook"
-        ttk.Notebook.__init__(self, root, *args, **kwargs)
+        DefaultNotebook.__init__(self, root, "azure-dark", *args, **kwargs)
         self.root = root
         self.data_handler = data_handler
         self.alert_system = alert_system
-
-        self.style = ttk.Style(self.root)
-        self.__initialize_custom_style()
 
         self._active = None
         self.packed = False
         self.frames = {}
 
-        self.bind("<ButtonPress-1>", self.on_close_press, True)
         self.bind("<ButtonRelease-1>", self.on_close_release)
         self.bind("<<NotebookTabClosed>>", lambda e=None: self.check_for_unpack())
-
-    def validate_tab_length(self, frame):
-        """Checks the length of characters in a tab and shortens it if need be."""
-        length = len(self.tab(frame)['text'])
-        if 14 <= length <= 18:
-            original = self.tab(frame)['text']
-            sliced = original[:-8]
-            self.tab(frame, text=(sliced + "..."))
-        elif 19 <= length <= 23:
-            original = self.tab(frame)['text']
-            sliced = original[:-12]
-            self.tab(frame, text=(sliced + "..."))
-        elif 24 <= length <= 28:
-            original = self.tab(frame)['text']
-            sliced = original[:-16]
-            self.tab(frame, text=(sliced + "..."))
-        elif 29 <= length <= 33:
-            original = self.tab(frame)['text']
-            sliced = original[:-22]
-            self.tab(frame, text=(sliced + "..."))
-        elif 34 <= length <= 35:
-            original = self.tab(frame)['text']
-            sliced = original[:-23]
-            self.tab(frame, text=(sliced + "..."))
 
     def add_tab(self, category: str, definition: str) -> None:
         """Calls the create_tab method to create elements and adds them to the notebook."""
@@ -1467,16 +1440,6 @@ class CustomNotebook(ttk.Notebook):
             self.packed = False
             self.frames = {}
 
-    def on_close_press(self, event) -> None:
-        """Called when the button is pressed over the close button"""
-        element = self.identify(event.x, event.y)
-
-        if "close" in element:
-            index = self.index("@%d,%d" % (event.x, event.y))
-            self.state(['pressed'])
-            self._active = index
-            return
-
     def on_close_release(self, event) -> None:
         """Called when the button is released"""
         if not self.instate(['pressed']):
@@ -1500,44 +1463,3 @@ class CustomNotebook(ttk.Notebook):
 
         self.state(["!pressed"])
         self._active = None
-
-    def __initialize_custom_style(self) -> None:
-        """Initializes the style for the notebook along with creating elements."""
-        self.images = (
-            tk.PhotoImage("img_close", file=CLOSE_BTN),
-            tk.PhotoImage("img_closeactive", file=CLOSE_BTN_ACTIVE),
-            tk.PhotoImage("img_closepressed", file=CLOSE_BTN_PRESSED)
-        )
-
-        self.style.element_create("close", "image", "img_close",
-                                  ("active", "pressed", "!disabled", "img_closepressed"),
-                                  ("active", "!disabled", "img_closeactive"), border=10, sticky='e')
-        self.style.layout("TNotebook", [("TNotebook.client", {"sticky": "nswe"})])
-        self.style.layout("TNotebook.Tab", [
-            ("TNotebook.tab", {
-                "sticky": "nswe",
-                "children": [
-                    ("TNotebook.padding", {
-                        "side": "top",
-                        "sticky": "nswe",
-                        "children": [
-                            ("TNotebook.focus", {
-                                "side": "top",
-                                "sticky": "nswe",
-                                "children": [
-                                    ("TNotebook.label", {"side": "left", "sticky": 'w'}),
-                                    ("TNotebook.close", {"side": "right", "sticky": 'e'}),
-                                ]
-                            })
-                        ]
-                    })
-                ]
-            })
-        ])
-        self.style.theme_settings("azure-dark", {
-            "TNotebook": {"configure": {"font": TAB_FONT, "padding": [0, 0], "focuscolor": "."}},
-            "TNotebook.Tab": {
-                "configure": {"padding": [2, 4], "font": TAB_FONT, "focuscolor": "."},
-                "map": {"background": [("selected", BUTTON_BG)],
-                        "expand": [("selected", [0, 0, 0, 0])]}}
-        })

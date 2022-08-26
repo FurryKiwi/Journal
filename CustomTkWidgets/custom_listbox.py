@@ -93,3 +93,21 @@ class DefaultListbox(tk.Listbox):
                 self.move_item(current_index, current_index - len(selection))
             self.unlock_shifting()
             return "break"
+
+
+# Testing Purposes ------------
+
+
+if __name__ == '__main__':
+    from Scripts.utils import *
+
+    r = tk.Tk()
+    set_window(r, 400, 300, "Test", True)
+    data = ["This", "Is", "Some", "Shit", "ToDo", "With", "Some", "More", "Fuck this up",
+            "This", "Is", "Some", "Shit", "ToDo", "With", "Some", "More", "Fuck this up",
+            "This", "Is", "Some", "Shit", "ToDo", "With", "Some", "More", "Fuck this up"]
+    test = DefaultListbox(r, selectmode=tk.EXTENDED)
+    test.pack()
+    for i in data:
+        test.insert(tk.END, i)
+    r.mainloop()

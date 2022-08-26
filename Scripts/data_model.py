@@ -73,13 +73,17 @@ class LoginHandler:
             return ["SignUp"]
 
     def _setup_data(self, data: dict):
-        last_signed_in = eval(data['current'])
-        decoded_last_signed_in = base64.urlsafe_b64decode(last_signed_in)
-        self.last_signed_in = decoded_last_signed_in.decode()
+        try:
+            last_signed_in = eval(data['current'])
+            decoded_last_signed_in = base64.urlsafe_b64decode(last_signed_in)
+            self.last_signed_in = decoded_last_signed_in.decode()
 
-        signed_in_btn = eval(data['signed_in'])
-        decoded_signed_in_btn = base64.urlsafe_b64decode(signed_in_btn.decode())
-        self.signed_in_btn = int(decoded_signed_in_btn)
+            signed_in_btn = eval(data['signed_in'])
+            decoded_signed_in_btn = base64.urlsafe_b64decode(signed_in_btn.decode())
+            self.signed_in_btn = int(decoded_signed_in_btn)
+        except SyntaxError:
+            self.last_signed_in = ""
+            self.signed_in_btn = 0
 
     def create_new_user(self, new_user: str, new_pw: str) -> bool:
         """Checks if new user already exists, otherwise adds user and pw to the database.

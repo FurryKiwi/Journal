@@ -699,7 +699,7 @@ class ImportView(tk.Toplevel):
 
     def __init__(self, root, data_handler, filepath, main_layout, **kwargs):
         tk.Toplevel.__init__(self, root, **kwargs)
-        utils.set_window(self, 800, 500, "Import")
+        utils.set_window(self, 700, 500, "Import")
         self.data_handler = data_handler
         self.main_layout = main_layout
 
@@ -715,6 +715,7 @@ class ImportView(tk.Toplevel):
         self.tree_view = None
 
         self.create_ui()
+        self._setup_tree_view()
         self.update_list()
 
     def create_ui(self):
@@ -779,9 +780,11 @@ class ImportView(tk.Toplevel):
 
         tk.Label(left, text="Existing Data:", font=DEFAULT_FONT).pack(side='top', pady=4, padx=4)
         self.tree_view = TreeView(left)
+        self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
+
+    def _setup_tree_view(self):
         self.tree_view.add_default_items(self.data_handler.get_categories_definitions_formatted(), importing=True,
                                          exception=True)
-        self.tree_view.pack(side='top', fill='both', expand=True, padx=4, pady=4)
 
     def set_category_list(self, category: str = None) -> None:
         """Set the category list to specified category or to the first one in the list."""
@@ -851,7 +854,7 @@ class ExportView(tk.Toplevel):
 
     def __init__(self, root, data_handler, **kwargs):
         tk.Toplevel.__init__(self, root, **kwargs)
-        utils.set_window(self, 800, 500, "Export")
+        utils.set_window(self, 700, 500, "Export")
         self.data_handler = data_handler
 
         self.category_box = None

@@ -39,13 +39,13 @@ def read_config(filepath: str):
         return json.load(file)
 
 
-def dump_json(filepath: str, data: dict) -> None:
+def dump_json(filepath: str, data: dict | str) -> None:
     with open(filepath, 'w') as file:
         json.dump(data, file, indent=4)
         file.truncate()
 
 
-def read_json(filename, data: dict) -> dict:
+def read_json(filename, data: dict) -> dict | str:
     """Read file data from the json file. Other-wise creates a new file."""
     try:
         with open(filename, 'r') as file:
@@ -124,7 +124,10 @@ def set_window(root, w, h, title, resize: bool = False) -> None:
     if sys.platform == "linux":  # To set the icon image, which nothing shows in linux
         pass
     else:
-        root.iconphoto(True, tk.PhotoImage(file=ICON_IMG_PNG))
+        try:
+            root.iconphoto(True, tk.PhotoImage(file=ICON_IMG_PNG))
+        except tk.TclError:
+            pass
     if resize:
         root.resizable(1, 1)
     else:

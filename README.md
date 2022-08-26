@@ -14,6 +14,11 @@ I built it to keep track of notes of what I'm studying and learning.
 # Credits
 Credit to rdbende for the azure theme, I've slightly modified and taken out the things the program doesn't use.
 
+# Requirements
+- pyenchant 3.2.2
+- Pillow 9.2.0
+- cryptography 37.0.4
+
 ![ScreenShot](/Screenshots/main_menu.PNG)
 ![ScreenShot](/Screenshots/Interface.PNG)
 ![ScreenShot](/Screenshots/Back_up_restore.PNG)

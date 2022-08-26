@@ -1,9 +1,13 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
-
+import ast
 import json
 import os
 import shutil
 import time
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
 import Scripts.utils as utils
 from Scripts.backup_system import BackUpSystem, BackUpView
 
@@ -27,14 +31,17 @@ class LoginHandler:
     _user_data = {"entry_limit": 20,
                   "tab_limit": 4,
                   "last_category": "",
-                  "default_font": ["Arial", 12]}
+                  "default_font": ["Arial", 12],
+                  "pinned": {}}
 
     def __init__(self, data_handler):
+        self.kdf = None
         self.data_handler = data_handler
 
         self.last_signed_in = None
         self.signed_in_btn = None
         self.entry_limit = 20  # This will be a constant for validating username and password limit
+        self.password_limit = 20
 
         # CWD/Data/Config/filename
         self._save_path_config = os.path.join(self._current_directory, self._main_dir, self._config_dir,
@@ -47,6 +54,16 @@ class LoginHandler:
 
         self._setup_data(utils.read_json(self._save_path_config, self._config_data))
 
+    def get_key(self, key: str) -> bytes:
+        self.kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=b'SALT',
+            iterations=100000,
+            backend=default_backend()
+        )
+        return base64.urlsafe_b64encode(self.kdf.derive(key.encode()))
+
     def get_users(self) -> list[str]:
         directory = self._users_folder_path
         dirlist = [item for item in os.listdir(directory) if os.path.isdir(os.path.join(directory, item))]
@@ -56,8 +73,13 @@ class LoginHandler:
             return ["SignUp"]
 
     def _setup_data(self, data: dict):
-        self.last_signed_in = data['current']
-        self.signed_in_btn = data['signed_in']
+        last_signed_in = eval(data['current'])
+        decoded_last_signed_in = base64.urlsafe_b64decode(last_signed_in)
+        self.last_signed_in = decoded_last_signed_in.decode()
+
+        signed_in_btn = eval(data['signed_in'])
+        decoded_signed_in_btn = base64.urlsafe_b64decode(signed_in_btn.decode())
+        self.signed_in_btn = int(decoded_signed_in_btn)
 
     def create_new_user(self, new_user: str, new_pw: str) -> bool:
         """Checks if new user already exists, otherwise adds user and pw to the database.
@@ -68,6 +90,7 @@ class LoginHandler:
         new_user = new_user.strip()
 
         if not utils.check_folder_exists(os.path.join(self._users_folder_path, new_user)):
+            new_pw = str(self.get_key(new_pw))
             # CWD/Data/Users/Username-folder/config_pref.json
             save_path_config = os.path.join(self._users_folder_path, new_user, self._user_config)
             utils.check_folder_and_create(os.path.join(self._users_folder_path, new_user))
@@ -85,18 +108,31 @@ class LoginHandler:
         if user == '' or user == "SignUp":
             return False
         u, p = self.get_credentials(user)
+        pw = str(self.get_key(pw))
         if user == u and pw == p:
-            self.signed_in_btn = auto
-            self.last_signed_in = user
+            self.signed_in_btn = base64.urlsafe_b64encode(str(auto).encode())
+            self.last_signed_in = base64.urlsafe_b64encode(user.encode())
+            self.signed_in_btn = str(self.signed_in_btn)
+            self.last_signed_in = str(self.last_signed_in)
             data = {"current": self.last_signed_in, "signed_in": self.signed_in_btn}
             utils.dump_json(self._save_path_config, data)
-            self.data_handler.setup_database(self.last_signed_in, self.signed_in_btn)
+            self.data_handler.setup_database(user, auto)
             return True
         else:
             return False
 
+    def bypass(self, user, auto) -> bool:
+        self.signed_in_btn = base64.urlsafe_b64encode(str(auto).encode())
+        self.last_signed_in = base64.urlsafe_b64encode(user.encode())
+        self.signed_in_btn = str(self.signed_in_btn)
+        self.last_signed_in = str(self.last_signed_in)
+        data = {"current": self.last_signed_in, "signed_in": self.signed_in_btn}
+        utils.dump_json(self._save_path_config, data)
+        self.data_handler.setup_database(user, auto)
+        return True
+
     def reset_password(self, user: str, new_user: str, new_pw: str) -> bool:
-        if new_user == '':
+        if len(new_user) < 1:
             return False
         users = self.get_users()
         if new_user in users and new_user != user:
@@ -110,6 +146,7 @@ class LoginHandler:
         folder_path = os.path.join(self._users_folder_path, user)
         # CWD/Data/Users/NewUsername
         new_folder_path = os.path.join(self._users_folder_path, new_user)
+        new_pw = str(self.get_key(new_pw))
         with open(save_path, 'r+') as file:
             data = json.load(file)
             data[new_user] = data.pop(user)
@@ -117,10 +154,6 @@ class LoginHandler:
         utils.dump_json(save_path, data)
         # Now to rename the folder
         os.rename(folder_path, new_folder_path)
-        # Save the main config file
-        self.last_signed_in = ""
-        self.signed_in_btn = 0
-        utils.dump_json(self._save_path_config, self._config_data)
         return True
 
     def delete_user(self, user: str) -> bool:
@@ -180,6 +213,7 @@ class DataHandler:
         self.tab_limit = None
         self.last_category = None
         self.default_font = None
+        self.pinned = None
 
         self._data_save_path = None
         self._config_save_path = None
@@ -189,7 +223,7 @@ class DataHandler:
         """Clears the current user's data."""
         self.data = {}
 
-    def setup_database(self, user: str, signed_in: int) -> None:
+    def setup_database(self, user: str, signed_in: str) -> None:
         """Grabs the saved data from the json file and set's attributes from it."""
         # CWD/Data/Users/Username/config_pref.json
         self._config_save_path = os.path.join(self._users_folder_path, user, self._users_config)
@@ -204,8 +238,16 @@ class DataHandler:
         self.tab_limit = config_data['tab_limit']
         self.last_category = config_data['last_category']
         self.default_font = config_data['default_font']
+        self.pinned = config_data['pinned']
 
-        self.data = utils.read_json(self._data_save_path, data={})
+        data = utils.read_json(self._data_save_path, data={})
+        if data:
+            eval_data = eval(data)
+            decoded_data = base64.urlsafe_b64decode(eval_data)
+            string_decoded_data = decoded_data.decode()
+            self.data = ast.literal_eval(string_decoded_data)
+        else:
+            self.data = {}
 
     def update_json(self) -> None:
         """Updates the data in the raw_data for the current user."""
@@ -213,8 +255,13 @@ class DataHandler:
         self.config_data['tab_limit'] = self.tab_limit
         self.config_data['last_category'] = self.last_category
         self.config_data['default_font'] = self.default_font
+        self.config_data['pinned'] = self.pinned
         utils.dump_json(self._config_save_path, self.config_data)
-        utils.dump_json(self._data_save_path, self.data)
+        # Encode here
+        encoded_data = base64.urlsafe_b64encode(str(self.data).encode())
+        # Covert to string for saving to json
+        encoded_data = str(encoded_data)
+        utils.dump_json(self._data_save_path, encoded_data)
 
     # Import/Export Functions
     def import_data(self, data: dict, orig_data: dict, backup: bool):
@@ -344,10 +391,24 @@ class DataHandler:
                 return True
             else:
                 # Add new definition
-                self.data[category].update({entry: ["", get_timestamp(), self.get_default_font()]})
+                items = list(self.data[category].items())
+                items.insert(0, (entry, ["", get_timestamp(), self.get_default_font()]))
+                self.data[category] = dict(items)
                 return True
         except KeyError:
             return False
+
+    def pin_definition(self, category, definition):
+        items = list(self.data[category].items())
+        items.insert(0, (definition, self.data[category][definition]))
+        self.data[category] = dict(items)
+        if category in self.pinned.keys():
+            self.pinned[category] = definition
+        else:
+            self.pinned.update({category: definition})
+
+    def remove_pin(self, category):
+        del self.pinned[category]
 
     def get_default_font(self):
         return self.default_font

@@ -6,15 +6,11 @@ except ImportError:  # Python 3
     from tkinter import ttk
 
 
-class CustomListBox(tk.Listbox):
+class DefaultListbox(tk.Listbox):
 
-    def __init__(self, root, data_handler=None, category=None, **kw):
-        kw['selectmode'] = kw.pop('selectmode')
+    def __init__(self, root, **kw):
         tk.Listbox.__init__(self, root, **kw)
         self.root = root
-        if data_handler is not None:
-            self.data_handler = data_handler
-        self.category = category
         self.bind('<Button-1>', self.set_current)
         self.bind('<Control-1>', self.toggle_selection)
         self.bind('<B1-Motion>', self.shift_selection)
@@ -23,12 +19,6 @@ class CustomListBox(tk.Listbox):
         self.ctrl_clicked = False
         self.index_lock = False
         self.unlock_shifting()
-
-    def save_new_order(self):
-        if self.data_handler is None:
-            return
-        new_list_order = list(self.get(0, tk.END))
-        self.data_handler.update_listbox(new_list_order, self.category)
 
     def set_current(self, event):
         self.ctrl_clicked = False
@@ -92,7 +82,6 @@ class CustomListBox(tk.Listbox):
                         not_in_index += 1
                 current_index = min(selection) - 1
                 self.move_item(current_index, current_index + len(selection))
-                self.save_new_order()
             elif current_index > max(selection):
                 self.lock_shifting()
                 not_in_index = 0
@@ -102,6 +91,5 @@ class CustomListBox(tk.Listbox):
                         not_in_index += 1
                 current_index = max(selection) + 1
                 self.move_item(current_index, current_index - len(selection))
-                self.save_new_order()
             self.unlock_shifting()
             return "break"

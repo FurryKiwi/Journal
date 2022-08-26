@@ -19,7 +19,7 @@ import os
 
 from CustomTkWidgets.custom_calendar import Calendar
 from CustomTkWidgets.custom_combobox import AutocompleteCombobox
-from CustomTkWidgets.custom_listbox import CustomListBox
+from CustomTkWidgets.custom_listbox import DefaultListbox
 from CustomTkWidgets.custom_treeview import TreeView
 from CustomTkWidgets.custom_notebook import DefaultNotebook
 from Scripts.settings import *
@@ -556,7 +556,7 @@ class TabArea(tk.Frame):
         self.text_area = TextArea(self.text_frame, self.data_handler, category, definition, self.alert_system,
                                   font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
                                   undo=True)
-        self.text_area.pack(side='right', padx=4)
+        self.text_area.pack(side='top', fill='both', expand=True)
 
         # Bottom Frame layout
         time_stamp = ttk.Label(bottom_frame,
@@ -1220,6 +1220,14 @@ class Layout(tk.Frame):
         else:
             self.alert_system.show_alert(("Could not paste definition.", "red"))
 
+    def pin_to_top(self, instance, index):
+        self.data_handler.pin_definition(self.category_box.get(), instance.get(index))
+        self.update_list()
+
+    def remove_pin(self, instance, index):
+        self.data_handler.remove_pin(self.category_box.get())
+        instance.itemconfigure(index, foreground='white', selectforeground='white')
+
     def pop_up_menu(self, event: (tk.Listbox, ttk.Combobox, tk.Entry)) -> None:
         """Create a popup menu by right-clicking with options."""
         instance = event.widget
@@ -1236,6 +1244,14 @@ class Layout(tk.Frame):
                                      command=lambda: self.create_view(instance, index, state='rdefinition'))
                     menu.add_command(label="Copy",
                                      command=lambda: self.copy_definition(instance, index))
+                    pinned = self.data_handler.pinned
+                    if instance.get(index) not in pinned.values():
+                        menu.add_command(label="Pin To Top",
+                                         command=lambda: self.pin_to_top(instance, index))
+                    else:
+                        menu.add_command(label="Remove Pin",
+                                         command=lambda: self.remove_pin(instance, index))
+
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -1301,17 +1317,105 @@ class Layout(tk.Frame):
         else:
             category = self.category_box.get()
             if self.list_box.size() != 0:
-                self.list_box.delete(0, self.list_box.size())
+                self.list_box.delete(0, tk.END)
             temp_list = self.data_handler.get_definitions_by_list(category)
+            pinned = self.data_handler.pinned
+            if category in pinned.keys():
+                self.list_box.insert(0, pinned[category])
+                self.list_box.itemconfigure(0, foreground='yellow', selectforeground='yellow')
             self.list_box.category = category
             if temp_list is not None:
                 for definition in temp_list:
-                    self.list_box.insert(tk.END, definition)
+                    try:
+                        if definition != pinned[category]:
+                            self.list_box.insert(tk.END, definition)
+                    except KeyError:
+                        self.list_box.insert(tk.END, definition)
             self.category_box.selection_clear()
 
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
         self.category_box.config(values=self.data_handler.get_categories_by_list())
+
+
+class CustomListBox(DefaultListbox):
+    def __init__(self, root, data_handler, category, **kwargs):
+        DefaultListbox.__init__(self, root, **kwargs)
+        self.root = root
+        self.data_handler = data_handler
+        self.category = category
+        self.pin = False
+
+    def save_new_order(self):
+        if self.data_handler is None:
+            return
+        new_list_order = list(self.get(0, tk.END))
+        self.data_handler.update_listbox(new_list_order, self.category)
+
+    def move_item(self, source, target):
+        if not self.ctrl_clicked:
+            item = self.get(source)
+            # To stop any item from being moved to index 0
+            if source != 0:
+                self.delete(source)
+                self.insert(target, item)
+
+    def shift_selection(self, event):
+        if self.index_lock:
+            return "break"
+        else:
+            if self.ctrl_clicked:
+                return "break"
+            selection = self.curselection()
+            if not self.selection or len(selection) == 0:
+                return "break"
+
+            if self.shifting:
+                return "break"
+
+            selection_range = range(min(selection), max(selection))
+            current_index = self.nearest(event.y)
+
+            pinned = self.data_handler.pinned
+            definition = self.get(0)
+            if definition in pinned.values():
+                self.pin = True
+                if self.selection_includes(0):
+                    return "break"
+
+            line_height = 5
+            bottom_y = self.winfo_height()
+            if event.y >= bottom_y - line_height:
+                self.lock_shifting()
+                self.see(self.nearest(bottom_y - line_height) + 1)
+                self.root.after(500, self.unlock_shifting)
+            if event.y <= line_height:
+                self.lock_shifting()
+                self.see(self.nearest(line_height) - 1)
+                self.root.after(500, self.unlock_shifting)
+
+            if current_index < min(selection):
+                self.lock_shifting()
+                not_in_index = 0
+                for i in selection_range[::-1]:
+                    if not self.selection_includes(i):
+                        self.move_item(i, max(selection) - not_in_index)
+                        not_in_index += 1
+                current_index = min(selection) - 1
+                self.move_item(current_index, current_index + len(selection))
+                self.save_new_order()
+            elif current_index > max(selection):
+                self.lock_shifting()
+                not_in_index = 0
+                for i in selection_range:
+                    if not self.selection_includes(i):
+                        self.move_item(i, min(selection) + not_in_index)
+                        not_in_index += 1
+                current_index = max(selection) + 1
+                self.move_item(current_index, current_index - len(selection))
+                self.save_new_order()
+            self.unlock_shifting()
+            return "break"
 
 
 class CustomNotebook(DefaultNotebook):

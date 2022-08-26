@@ -7,7 +7,6 @@ except ImportError:  # Python 3
     import tkinter as tk
     from tkinter import ttk
     from tkinter import messagebox, filedialog
-    import tkinter.font as tkfont
 
 
 class DefaultNotebook(ttk.Notebook):

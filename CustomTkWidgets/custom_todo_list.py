@@ -10,35 +10,38 @@ except ImportError:  # Python 3
 
 
 class CustomToDoList(ttk.Frame):
-    """Custom Check List that will add check-buttons to every element in a given list.
-        Args: root: tk.window,
-              todo_list: list,
-              title: string,
-              width: int
-    """
+    """Custom Check List that will add check-buttons to every element in a given list."""
 
     DEFAULT_FONT = ("Arial", 12)
     ENTRY_COLOR = "#848689"
 
     def __init__(self, root, title, todo_list: list = None, **kwargs):
-        try:
-            self.width = kwargs['width']
-        except KeyError:
-            self.width = 25
-        try:
-            self.height = kwargs['height']
-        except KeyError:
-            self.height = 25
-
         ttk.Frame.__init__(self, root, **kwargs)
+        self.width = kwargs.pop('width', 25)
+        self.height = kwargs.pop('height', 25)
         self.root = root
         self.vars = []
         self.check_buttons = []
 
         ttk.Label(self, text=title, font=self.DEFAULT_FONT).pack(side='top', padx=4, pady=4)
 
+        self.canvas = tk.Canvas(self, borderwidth=0)
+        self.frame = ttk.Frame(self.canvas)
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+
+        self.vsb.pack(side='right', fill='y')
+        self.canvas.pack(side='top')
+        self.canvas.create_window((0, 0), window=self.frame, anchor='nw',
+                                  tags="self.frame")
+
+        self.frame.bind("<Configure>", self.on_frame_configure)
+
         if todo_list:
             self._initial_creation(todo_list)
+
+    def on_frame_configure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def _initial_creation(self, values: list) -> None:
         for choice in values:
@@ -47,11 +50,11 @@ class CustomToDoList(ttk.Frame):
             if choice not in already_added:
                 var = tk.StringVar(value=choice)
                 self.vars.append(var)
-                cb = ttk.Checkbutton(self, variable=var, text=choice,
+                cb = ttk.Checkbutton(self.frame, variable=var, text=choice,
                                      onvalue=choice, offvalue="",
                                      width=self.width, style="TCheckbutton", takefocus=False
                                      )
-                cb.pack(side="top", fill="x", anchor="w")
+                cb.pack(side="top", fill="x")
                 cb.bind("<ButtonPress-3>", lambda event: self.create_popup(event))
                 self.check_buttons.append(cb)
         self.deselect_all()
@@ -60,14 +63,14 @@ class CustomToDoList(ttk.Frame):
         menu = tk.Menu(self.root, tearoff=0)
         menu.add_command(label="Select All", command=lambda: self.select_all())
         menu.add_command(label="Deselect All", command=lambda: self.deselect_all())
-        menu.add_command(label="Add Element", command=lambda: self.create_window())
+        menu.add_command(label="Add Element", command=lambda: self.create_win())
         menu.add_command(label="Remove Element", command=lambda: self.remove_element(event))
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
             menu.grab_release()
 
-    def create_window(self) -> None:
+    def create_win(self) -> None:
         top_window, entry = self.create_pop_up("Add Element", self.root, 100)
 
         ttk.Button(top_window, text="Add Element", width=21, style="Accent.TButton",
@@ -143,11 +146,11 @@ class CustomToDoList(ttk.Frame):
             if value not in already_added:
                 var = tk.StringVar(value=value)
                 self.vars.append(var)
-                cb = ttk.Checkbutton(self, variable=var, text=value,
+                cb = ttk.Checkbutton(self.frame, variable=var, text=value,
                                      onvalue=value, offvalue="",
                                      width=self.width, style="TCheckbutton", takefocus=False
                                      )
-                cb.pack(side="top", fill="x", anchor="w")
+                cb.pack(side="top", fill="x")
                 cb.bind("<ButtonPress-3>", lambda event: self.create_popup(event))
                 self.check_buttons.append(cb)
                 cb.invoke()
@@ -185,3 +188,24 @@ class CustomToDoList(ttk.Frame):
         for cbb in self.check_buttons:
             if cbb.cget('onvalue') in variables:
                 cbb.invoke()
+
+
+# Testing Purposes ------------------
+def print_checked(widget):
+    print(widget.get_checked_items())
+
+
+if __name__ == '__main__':
+    from Scripts.utils import *
+    tcl_path = "Core/tcl_files/azure.tcl"
+    root = tk.Tk()
+    root.tk.call("source", tcl_path)
+    root.tk.call("set_theme", "dark")
+    set_window(root, 200, 100, "Test", resize=True)
+    data = ["This", "Is", "Some", "test", "Infomation", "and", "some", "more"]
+    ttk.Button(root, text="Print Checked", style="Accent.TButton", command=lambda: print_checked(test)).pack()
+
+    test = CustomToDoList(root, "ToDoList", data)
+    test.pack()
+
+    root.mainloop()

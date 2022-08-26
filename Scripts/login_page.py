@@ -48,6 +48,8 @@ class LoginPage(ttk.Notebook):
         self.reset_user_entry = None
         self.delete_btn = None
 
+        self.change_user = False
+
         self.create_login_page()
         self.create_signup_page()
         self.create_reset_page()
@@ -76,8 +78,8 @@ class LoginPage(ttk.Notebook):
 
         self.password_login = tk.Entry(login_frame, validate="key",
                                        validatecommand=(self.root.register(
-                                           lambda event: utils.validate_entry(event, self.login_handler.entry_limit)),
-                                                        "%P"), width=25,
+                                           lambda event: utils.validate_entry
+                                           (event, self.login_handler.password_limit)), "%P"), width=25,
                                        font=DEFAULT_FONT, background=ENTRY_COLOR, show="*")
         self.password_login.pack()
 
@@ -89,7 +91,7 @@ class LoginPage(ttk.Notebook):
         if self.login_handler.signed_in_btn:
             self.auto_sign.set(self.login_handler.signed_in_btn)
             user, pw = self.login_handler.get_credentials(self.login_handler.last_signed_in)
-            self.password_login.insert(0, pw)
+            self.password_login.insert(0, user)
 
         self.login_page_btn = ttk.Button(login_frame, style="Accent.TButton", text="Login", width=24,
                                          command=lambda: self.login(self.user_login.get(),
@@ -176,6 +178,8 @@ class LoginPage(ttk.Notebook):
         """Clears password and user login entry/combobox."""
         self.password_login.delete(0, len(self.password_login.get()))
         self.user_login.selection_clear()
+        self.auto_sign.set(0)
+        self.change_user = True
 
     def delete_user(self, user: str) -> None:
         """Calls the data_handler method for deleting users and notifies user of progress."""
@@ -213,10 +217,17 @@ class LoginPage(ttk.Notebook):
     def login(self, user: str, pw: str) -> None:
         """Calls database validation of user and password, if true,
         Closes login window and calls journal run method to start main application."""
+        if self.login_handler.signed_in_btn and self.change_user is False:
+            check = self.login_handler.bypass(user, self.auto_sign.get())
+            if check:
+                self.root.destroy()
+                self.journal.run()
+                return
         logged_in = self.login_handler.validate_login(user, pw, self.auto_sign.get())
         if logged_in:
             self.root.destroy()
             self.journal.run()
+            return
         else:
             self.password_login.delete(0, len(self.password_login.get()))
             self.password_login.focus_set()
@@ -233,6 +244,11 @@ class LoginPage(ttk.Notebook):
             # If user doesn't specify a new user_name, it uses the old username
             if new_user == '':
                 new_user = user
+            if new_pw == '':
+                if tk.messagebox.askyesno("No Password Set", "Are you sure you don't want a password?"):
+                    new_pw = new_pw
+                else:
+                    return
             check = self.login_handler.reset_password(user, new_user, new_pw)
             if check:
                 self.delete_entries()

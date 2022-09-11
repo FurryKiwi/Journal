@@ -864,6 +864,7 @@ class Layout(tk.Frame):
 
         check = self.data_handler.add_category(entry, category)
         if check:
+            window.grab_release()
             window.destroy()
             self.update_categories()
             self.set_category_list(entry)
@@ -882,6 +883,7 @@ class Layout(tk.Frame):
         if check:
             self.update_list()
             if window:
+                window.grab_release()
                 window.destroy()
         else:
             self.alert_system.show_alert(("Could not save definition.", "red"))
@@ -915,6 +917,7 @@ class Layout(tk.Frame):
         if state == "rdefinition":
             definition = instance.get(index)
             top_window, entry = utils.create_pop_up("Rename Definition", self.root, self.data_handler.entry_limit)
+            top_window.grab_set()
 
             ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
                        command=lambda e=None: self.add_definition(entry.get(), category, definition,
@@ -926,6 +929,7 @@ class Layout(tk.Frame):
 
         elif state == "rcategory":
             top_window, entry = utils.create_pop_up("Rename Category", self.root, self.data_handler.entry_limit)
+            top_window.grab_set()
 
             ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
                        command=lambda: self.add_category(entry.get(), top_window,
@@ -936,6 +940,7 @@ class Layout(tk.Frame):
     def add_category_view(self):
         top_window = tk.Toplevel(self.root)
         utils.set_window(top_window, 250, 180, "Add Category")
+        top_window.grab_set()
 
         ttk.Label(top_window, text="Examples: ", font=DEFAULT_FONT_BOLD, style="H.TLabel").pack(pady=4)
 
@@ -1059,6 +1064,7 @@ class Layout(tk.Frame):
         """Creates the calendar in a top window."""
         top_window = tk.Toplevel(self.root)
         utils.set_window(top_window, 255, 230, "Calender")
+        top_window.grab_set()
 
         cal = Calendar(top_window)
         cal.pack(expand=1, fill='both', padx=4, pady=4)

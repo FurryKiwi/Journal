@@ -82,6 +82,7 @@ class BackUpSystem:
         # If no data is being passed, then returns false
         if data == {}:
             self.alert_system.show_alert(("No data to backup.", "red"))
+            return
         else:
             # Checks if user has a backup already
             check_user = self._check_user_for_backup(user, self.backup_data)

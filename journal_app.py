@@ -25,8 +25,8 @@ class Journal:
     _path_to_py_file = sys.argv
     _path_to_py_exe = sys.executable
     __slots__ = "data_handler", "theme_path", "theme", "login_handler", "root", "title", "search_engine", \
-                "alert_system", "main_layout", "login_page", "canvas", "menubar", "style", "style_manager", \
-                "pack_settings"
+                "alert_system", "main_layout", "login_page", "canvas", "menubar", "settings_page", "style", \
+                "style_manager", "pack_settings", "export_page", "import_page"
 
     def __init__(self, title: str, root):
         self.data_handler = DataHandler()
@@ -48,6 +48,9 @@ class Journal:
         self.login_page = None
         self.canvas = None
         self.menubar = None
+        self.settings_page = None
+        self.export_page = None
+        self.import_page = None
 
         self.style = None
         self.style_manager = None
@@ -79,17 +82,15 @@ class Journal:
         filemenu.add_command(label="Clear Database", command=self._on_clearing)
 
         filemenu.add_cascade(label="Import/Export", menu=export_import_menu)
-        export_import_menu.add_command(label="Import Data", command=self.import_data_view)
-        export_import_menu.add_command(label="Export Data", command=lambda: ExportView(self.root, self.data_handler))
+        export_import_menu.add_command(label="Import Data", command=self.create_import_page)
+        export_import_menu.add_command(label="Export Data", command=self.create_export_page)
 
         filemenu.add_separator()
         filemenu.add_command(label="Log Out", command=self._log_out)
 
         searchmenu.add_command(label="Word Search", command=lambda: self.search_engine.create_view())
 
-        settingsmenu.add_command(label="Settings",
-                                 command=lambda: SettingsPage(self.root, self.data_handler, self.canvas,
-                                                              self.style_manager, self.main_layout))
+        settingsmenu.add_command(label="Settings", command=self.create_settings_page)
 
         settingsmenu.add_cascade(label="Screen Settings", menu=screen_menu)
         screen_menu.add_command(label="Clear Screen", command=lambda: self.unpack_widgets())
@@ -98,6 +99,45 @@ class Journal:
         settingsmenu.add_cascade(label="Change Theme", menu=theme_menu)
         theme_menu.add_command(label="Azure Theme", command=lambda: self.azure_theme())
         theme_menu.add_command(label="Sun Valley Theme", command=lambda: self.sun_valley_theme())
+
+    def create_export_page(self):
+        if self.export_page is None:
+            self.export_page = ExportView(self.root, self.data_handler)
+        else:
+            try:
+                self.export_page.focus_set()
+            except tk.TclError:
+                self.export_page = ExportView(self.root, self.data_handler)
+
+    def create_import_page(self):
+        if self.import_page is None:
+            try:
+                filepath = tk.filedialog.askopenfilename(filetypes=[("Json Files", ".json")])
+                if filepath != '':
+                    self.import_page = ImportView(self.root, self.data_handler, filepath, self.main_layout)
+            except FileNotFoundError:
+                tk.messagebox.showinfo("No File", "Please select a file to open.", parent=self.root)
+        else:
+            try:
+                self.import_page.focus_set()
+            except tk.TclError:
+                try:
+                    filepath = tk.filedialog.askopenfilename(filetypes=[("Json Files", ".json")])
+                    if filepath != '':
+                        self.import_page = ImportView(self.root, self.data_handler, filepath, self.main_layout)
+                except FileNotFoundError:
+                    tk.messagebox.showinfo("No File", "Please select a file to open.", parent=self.root)
+
+    def create_settings_page(self):
+        if self.settings_page is None:
+            self.settings_page = SettingsPage(self.root, self.data_handler, self.canvas,
+                                              self.style_manager, self.main_layout)
+        else:
+            try:
+                self.settings_page.focus_set()
+            except tk.TclError:
+                self.settings_page = SettingsPage(self.root, self.data_handler, self.canvas,
+                                                  self.style_manager, self.main_layout)
 
     def unpack_widgets(self):
         widgets = self.canvas.winfo_children()
@@ -132,14 +172,6 @@ class Journal:
         self.data_handler.theme["theme_path"] = SUN_VALLEY_THEME_PATH
         self._on_restart()
         os.execv(self._path_to_py_exe, ['python'] + self._path_to_py_file)
-
-    def import_data_view(self):
-        try:
-            filepath = tk.filedialog.askopenfilename(filetypes=[("Json Files", ".json")])
-            if filepath != '':
-                ImportView(self.root, self.data_handler, filepath, self.main_layout)
-        except FileNotFoundError:
-            tk.messagebox.showinfo("No File", "Please select a file to open.", parent=self.root)
 
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?", parent=self.root):

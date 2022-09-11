@@ -1,15 +1,13 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
-import ast
+
 import json
 import os
 import shutil
 import time
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
+import random
 import Scripts.utils as utils
-from Scripts.backup_system import BackUpSystem, BackUpView
+from Scripts.settings import *
+from Scripts.backup_system import BackUpSystem
 
 
 def get_timestamp() -> str:
@@ -27,21 +25,26 @@ class LoginHandler:
     _main_dir = "Data"
     _config_dir = "Config"
     _main_user_dir = "Users"
-    _config_data = {"current": "", "signed_in": 0}
+    _config_passes = 2
+    _pw_passes = 6
+    _config_data = {"current": utils.encode_string("", _config_passes),
+                    "signed_in": utils.encode_string(0, _config_passes)
+                    }
     _user_data = {"entry_limit": 20,
                   "tab_limit": 4,
                   "last_category": "",
                   "default_font": ["Arial", 12],
-                  "pinned": {}}
+                  "pinned": {}
+                  }
+    __slots__ = "data_handler", "last_signed_in", "signed_in_btn", "entry_limit", "_save_path_config", \
+                "_save_path_config_folder", "_users_folder_path"
 
     def __init__(self, data_handler):
-        self.kdf = None
         self.data_handler = data_handler
 
         self.last_signed_in = None
         self.signed_in_btn = None
-        self.entry_limit = 20  # This will be a constant for validating username and password limit
-        self.password_limit = 20
+        self.entry_limit = 20
 
         # CWD/Data/Config/filename
         self._save_path_config = os.path.join(self._current_directory, self._main_dir, self._config_dir,
@@ -54,15 +57,8 @@ class LoginHandler:
 
         self._setup_data(utils.read_json(self._save_path_config, self._config_data))
 
-    def get_key(self, key: str) -> bytes:
-        self.kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=b'SALT',
-            iterations=100000,
-            backend=default_backend()
-        )
-        return base64.urlsafe_b64encode(self.kdf.derive(key.encode()))
+    def get_key(self, key: str) -> str:
+        return utils.encode_string(key, self._pw_passes)
 
     def get_users(self) -> list[str]:
         directory = self._users_folder_path
@@ -72,20 +68,21 @@ class LoginHandler:
         else:
             return ["SignUp"]
 
-    def _setup_data(self, data: dict):
+    def _setup_data(self, data):
         try:
-            last_signed_in = eval(data['current'])
-            decoded_last_signed_in = base64.urlsafe_b64decode(last_signed_in)
-            self.last_signed_in = decoded_last_signed_in.decode()
-
-            signed_in_btn = eval(data['signed_in'])
-            decoded_signed_in_btn = base64.urlsafe_b64decode(signed_in_btn.decode())
-            self.signed_in_btn = int(decoded_signed_in_btn)
-        except SyntaxError:
+            data, _ = utils.decode_string(data, self._config_passes, True)
+            self.last_signed_in, _ = utils.decode_string(data['current'], self._config_passes)
+            self.signed_in_btn, _ = utils.decode_string(data['signed_in'], self._config_passes)
+            self.signed_in_btn = int(self.signed_in_btn)
+        except TypeError:
             self.last_signed_in = ""
             self.signed_in_btn = 0
 
-    def create_new_user(self, new_user: str, new_pw: str) -> bool:
+    @staticmethod
+    def _gen_random_passes() -> int:
+        return random.randint(2, 20)
+
+    def create_new_user(self, new_user: str, new_pw: str, birth: str = None) -> bool:
         """Checks if new user already exists, otherwise adds user and pw to the database.
         Returns True if created successfully, otherwise False"""
         if new_user == '':
@@ -94,48 +91,58 @@ class LoginHandler:
         new_user = new_user.strip()
 
         if not utils.check_folder_exists(os.path.join(self._users_folder_path, new_user)):
-            new_pw = str(self.get_key(new_pw))
+            new_pw = self.get_key(new_pw)
             # CWD/Data/Users/Username-folder/config_pref.json
             save_path_config = os.path.join(self._users_folder_path, new_user, self._user_config)
             utils.check_folder_and_create(os.path.join(self._users_folder_path, new_user))
             # CWD/Data/Users/Username-folder/unknown.json
             secret = os.path.join(self._users_folder_path, new_user, self._secret_config)
 
-            utils.dump_json(secret, {new_user: new_pw})
+            data_passes = self._gen_random_passes()
+            data = utils.encode_string({new_user: new_pw, "Data": data_passes}, self._pw_passes)
+
+            utils.dump_json(secret, data)
             utils.dump_json(save_path_config, self._user_data)
             return True
         else:
             return False
 
-    def validate_login(self, user: str, pw: str, auto: int) -> bool:
+    def validate_login(self, user: str, pw: str, auto: int) -> tuple[bool, str]:
         """Checks if user and pw == database data, returns True, otherwise False."""
         if user == '' or user == "SignUp":
-            return False
-        u, p = self.get_credentials(user)
-        pw = str(self.get_key(pw))
+            return False, ""
+        u, p = self.get_credentials_data(user)
+        pw = self.get_key(pw)
         if user == u and pw == p:
-            self.signed_in_btn = base64.urlsafe_b64encode(str(auto).encode())
-            self.last_signed_in = base64.urlsafe_b64encode(user.encode())
-            self.signed_in_btn = str(self.signed_in_btn)
-            self.last_signed_in = str(self.last_signed_in)
-            data = {"current": self.last_signed_in, "signed_in": self.signed_in_btn}
-            utils.dump_json(self._save_path_config, data)
-            self.data_handler.setup_database(user, auto)
-            return True
+            data_passes = self.get_credentials_data(user, key="Data")
+            check, message = self.data_handler.setup_database(user, auto, data_passes)
+            self.last_signed_in = user
+            self.signed_in_btn = auto
+            last_signed_in = utils.encode_string(user, self._config_passes)
+            signed_in_btn = utils.encode_string(auto, self._config_passes)
+            data = {"current": last_signed_in, "signed_in": signed_in_btn}
+            encoded = utils.encode_string(data, self._config_passes)
+            utils.dump_json(self._save_path_config, encoded)
+            if message != "":
+                return True, message
+            else:
+                return True, ""
         else:
-            return False
+            return False, ""
 
-    def bypass(self, user, auto) -> bool:
-        self.signed_in_btn = base64.urlsafe_b64encode(str(auto).encode())
-        self.last_signed_in = base64.urlsafe_b64encode(user.encode())
-        self.signed_in_btn = str(self.signed_in_btn)
-        self.last_signed_in = str(self.last_signed_in)
-        data = {"current": self.last_signed_in, "signed_in": self.signed_in_btn}
-        utils.dump_json(self._save_path_config, data)
-        self.data_handler.setup_database(user, auto)
-        return True
+    def bypass(self, user, auto) -> tuple[bool, str]:
+        last_signed_in = utils.encode_string(user, self._config_passes)
+        signed_in_btn = utils.encode_string(auto, self._config_passes)
+        data = {"current": last_signed_in, "signed_in": signed_in_btn}
+        encoded = utils.encode_string(data, self._config_passes)
+        utils.dump_json(self._save_path_config, encoded)
+        data_passes = self.get_credentials_data(user, key="Data")
+        check, message = self.data_handler.setup_database(user, auto, data_passes)
+        if message != "":
+            return True, message
+        return True, ""
 
-    def reset_password(self, user: str, new_user: str, new_pw: str) -> bool:
+    def reset_password(self, user: str, pw: str, new_user: str, new_pw: str) -> bool:
         if len(new_user) < 1:
             return False
         users = self.get_users()
@@ -143,25 +150,37 @@ class LoginHandler:
             return False
         if user == "SignUp":
             return False
-        user, pw = self.get_credentials(user)
+        u, p = self.get_credentials_data(user)
+        pw = self.get_key(pw)
+        if p != pw:
+            return False
         # CWD/Data/Users/Username/unknown.json
-        save_path = os.path.join(self._users_folder_path, user, self._secret_config)
+        save_path = os.path.join(self._users_folder_path, u, self._secret_config)
         # CWD/Data/Users/Username
-        folder_path = os.path.join(self._users_folder_path, user)
+        folder_path = os.path.join(self._users_folder_path, u)
         # CWD/Data/Users/NewUsername
         new_folder_path = os.path.join(self._users_folder_path, new_user)
-        new_pw = str(self.get_key(new_pw))
+        new_pw = self.get_key(new_pw)
         with open(save_path, 'r+') as file:
             data = json.load(file)
-            data[new_user] = data.pop(user)
-            data[new_user] = new_pw
+
+        data, _ = utils.decode_string(data, self._pw_passes, True)
+        data[new_user] = data.pop(user)
+        data[new_user] = new_pw
+        data = utils.encode_string(data, self._pw_passes)
+
         utils.dump_json(save_path, data)
         # Now to rename the folder
-        os.rename(folder_path, new_folder_path)
+        if u != new_user:
+            os.rename(folder_path, new_folder_path)
         return True
 
-    def delete_user(self, user: str) -> bool:
+    def delete_user(self, user: str, pw: str) -> bool:
         if user == '':
+            return False
+        u, p = self.get_credentials_data(user)
+        pw = self.get_key(pw)
+        if p != pw:
             return False
         try:
             users = self.get_users()
@@ -170,25 +189,30 @@ class LoginHandler:
                     try:
                         path = os.path.join(self._users_folder_path, user)
                         shutil.rmtree(path)
-                        self.signed_in_btn = 0
-                        self.last_signed_in = ""
-                        utils.dump_json(self._save_path_config, self._config_data)
+                        data = utils.encode_string(self._config_data, self._config_passes)
+                        utils.dump_json(self._save_path_config, data)
                         return True
                     except OSError:
                         return False
         except KeyError:
             return False
 
-    def get_credentials(self, user: str) -> tuple:
+    def get_credentials_data(self, user: str, key: str = None) -> tuple | int:
         """Returns the selected user and pw from the database for validation."""
         # CWD/Data/Users/Username/unknown.json
         save_path = os.path.join(self._users_folder_path, user, self._secret_config)
 
         with open(save_path, 'r') as file:
             data = json.load(file)
-        temp = [(u, p) for u, p in data.items()]
-        user, pw = temp[0]
-        return user, pw
+        data, _ = utils.decode_string(data, self._pw_passes, True)
+        if key is not None:
+            temp = [(d, v) for d, v in data.items() if d == key]
+            _, passes = temp[0]
+            return passes
+        else:
+            temp = [(u, p) for u, p in data.items() if u == user]
+            user, pw = temp[0]
+            return user, pw
 
 
 class DataHandler:
@@ -200,10 +224,22 @@ class DataHandler:
     _users_directory = "Users"
     _users_folder_path = os.path.join(_current_directory, _directory, _users_directory)
     _users_config = "config_pref.json"
-    _save_path = ""
+    _theme_config = "theme.json"
+    _path_to_config_directory = os.path.join(_current_directory, _directory, "Config")
+    _path_to_theme_config = os.path.join(_current_directory, _directory, "Config", _theme_config)
     _time_frames = {"30": 30000,
                     "60": 60000,
                     "120": 120000}
+    _default_theme_data = {"theme_path": AZURE_THEME_PATH,
+                           "theme": AZURE_THEME}
+    _user_data = {"entry_limit": 20,
+                  "tab_limit": 4,
+                  "last_category": "",
+                  "default_font": ["Arial", 12],
+                  "pinned": {}}
+    __slots__ = "backup_sys", "data", "config_data", "current_user", "signed_in", "entry_limit", "tab_limit", \
+                "last_category", "default_font", "pinned", "theme", "_data_passes", "_data_save_path", \
+                "_config_save_path"
 
     def __init__(self):
         self.backup_sys = None
@@ -218,23 +254,28 @@ class DataHandler:
         self.last_category = None
         self.default_font = None
         self.pinned = None
+        self.theme = None
+        self._data_passes = None
 
         self._data_save_path = None
         self._config_save_path = None
+
+        self._setup_theme()
 
     # Json data functions
     def clear_data(self) -> None:
         """Clears the current user's data."""
         self.data = {}
 
-    def setup_database(self, user: str, signed_in: str) -> None:
+    def _setup_theme(self):
+        utils.check_folder_and_create(self._path_to_config_directory)
+        self.theme = utils.read_json(self._path_to_theme_config, self._default_theme_data)
+
+    def setup_database(self, user: str, signed_in: str, data_passes: int) -> tuple[bool, str]:
         """Grabs the saved data from the json file and set's attributes from it."""
         # CWD/Data/Users/Username/config_pref.json
         self._config_save_path = os.path.join(self._users_folder_path, user, self._users_config)
-        # CWD/Data/Users/Username/database.json
-        self._data_save_path = os.path.join(self._users_folder_path, user, self._filename)
-
-        config_data = utils.read_config(self._config_save_path)
+        config_data = utils.read_json(self._config_save_path, self._user_data)
 
         self.current_user = user
         self.signed_in = signed_in
@@ -244,14 +285,21 @@ class DataHandler:
         self.default_font = config_data['default_font']
         self.pinned = config_data['pinned']
 
+        # CWD/Data/Users/Username/database.json
+        self._data_save_path = os.path.join(self._users_folder_path, user, self._filename)
+        self._data_passes = data_passes
+
         data = utils.read_json(self._data_save_path, data={})
-        if data:
-            eval_data = eval(data)
-            decoded_data = base64.urlsafe_b64decode(eval_data)
-            string_decoded_data = decoded_data.decode()
-            self.data = ast.literal_eval(string_decoded_data)
-        else:
+        # First time creating
+        if data == {}:
             self.data = {}
+            return True, ""
+        self.data, check = utils.decode_string(data, self._data_passes, json_object=True)
+        if not check:
+            self.data = {}
+            return True, "Database has been corrupted."
+        else:
+            return True, ""
 
     def update_json(self) -> None:
         """Updates the data in the raw_data for the current user."""
@@ -261,11 +309,19 @@ class DataHandler:
         self.config_data['default_font'] = self.default_font
         self.config_data['pinned'] = self.pinned
         utils.dump_json(self._config_save_path, self.config_data)
-        # Encode here
-        encoded_data = base64.urlsafe_b64encode(str(self.data).encode())
-        # Covert to string for saving to json
-        encoded_data = str(encoded_data)
-        utils.dump_json(self._data_save_path, encoded_data)
+
+        utils.dump_json(self._path_to_theme_config, self.theme)
+
+        data = utils.encode_string(self.data, self._data_passes)
+        utils.dump_json(self._data_save_path, data)
+
+    def reset_default_config(self):
+        config_data = self._user_data
+        self.entry_limit = config_data['entry_limit']
+        self.tab_limit = config_data['tab_limit']
+        self.last_category = config_data['last_category']
+        self.default_font = config_data['default_font']
+        utils.dump_json(self._config_save_path, self._user_data)
 
     # Import/Export Functions
     def import_data(self, data: dict, orig_data: dict, backup: bool):
@@ -314,10 +370,6 @@ class DataHandler:
     def create_backup_system(self, root, alert_system) -> None:
         """Creates the backup system for the current user."""
         self.backup_sys = BackUpSystem(root, self, alert_system)
-
-    def create_backup_view(self, root, main_layout):
-        """Creates the backup view page."""
-        BackUpView(root, main_layout, self)
 
     def backup_data(self) -> None:
         """Calls the backup user method from the BackupSystem with the current user and data."""
@@ -464,7 +516,9 @@ class DataHandler:
                 return list(self.data.keys())
             else:
                 return ["Create a Category"]
-        except AttributeError or TypeError:
+        except AttributeError:
+            return ["Create a Category"]
+        except TypeError:
             return ["Create a Category"]
 
     def get_definitions_by_list(self, category: str) -> list:

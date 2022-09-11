@@ -7,8 +7,10 @@ except ImportError:  # Python 3
 
 
 class TreeView(ttk.Treeview):
-    def __init__(self, top_window, **kwargs):
-        ttk.Treeview.__init__(self, top_window, **kwargs)
+    __slots__ = "parents", "children_of_parents", "item_selected", "exempt"
+
+    def __init__(self, top_window, *args, **kwargs):
+        ttk.Treeview.__init__(self, top_window, *args, **kwargs)
         self.parents = []
         self.children_of_parents = []
         self.item_selected = None
@@ -93,13 +95,9 @@ class TreeView(ttk.Treeview):
             if i in self.exempt:
                 return
             if i in self.parents:
-                for index, child in enumerate(self.parents):
-                    if i == child:
-                        remove_parents.append(index)
+                remove_parents = [index for index, child in enumerate(self.parents) if i == child]
             if i in self.children_of_parents:
-                for index, c in enumerate(self.children_of_parents):
-                    if i == c:
-                        remove_children.append(index)
+                remove_children = [index for index, c in enumerate(self.children_of_parents) if i == c]
             if self.exists(i):
                 self.delete(i)
 
@@ -134,8 +132,6 @@ class TreeView(ttk.Treeview):
             for cat in self.parents:
                 if self.exists(cat):
                     temp = self.get_children(cat)
-                    texts = []
-                    for i in temp:
-                        texts.append(self.item(i)['text'])
+                    texts = [self.item(i)['text'] for i in temp]
                     all_data.update({self.item(cat)['text']: texts})
             return all_data

@@ -12,6 +12,7 @@ from Scripts.settings import *
 
 
 class AlertSystem:
+    __slots__ = "root", "layout", "queue", "shown", "after_id"
 
     def __init__(self, root):
         self.root = root
@@ -26,10 +27,11 @@ class AlertSystem:
         if not self.shown:
             try:
                 message, color = self.queue.pop()
-                label = tk.Label(self.layout.category_frame, text=message, fg=color, font=DEFAULT_FONT)
+                label = ttk.Label(self.layout.category_frame, text=message, style="R.TLabel", foreground=color,
+                                  font=DEFAULT_FONT)
                 label.grid(row=1, column=4, columnspan=2)
                 self.shown = True
-                self.after_id = self.root.after(800, lambda: self.clear_canvas(label))
+                self.after_id = self.root.after(1000, lambda: self.clear_canvas(label))
             except IndexError:
                 return
 

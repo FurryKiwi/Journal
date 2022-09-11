@@ -1,0 +1,1 @@
+['custom', 'red', 'blue', 'green', 'orange', 'white', 'grey', 'black', 'purple', 'brown', 'yellow', 'violet']

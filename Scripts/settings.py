@@ -1,6 +1,6 @@
 # Copyright © 2022 FurryKiwi <normalusage2@gmail.com>
 
-SCREEN_WIDTH = 800
+SCREEN_WIDTH = 850
 SCREEN_HEIGHT = 600
 TITLE = "Journal"
 
@@ -35,25 +35,16 @@ MONTHS = {"01": "Jan",
           "11": "Nov",
           "12": "Dec"}
 
-# For creating the notebook close button elements
-CLOSE_BTN = "Core/Images/close-button.png"
-CLOSE_BTN_ACTIVE = "Core/Images/close.png"
-CLOSE_BTN_PRESSED = "Core/Images/close_active.png"
+EXAMPLE_CATEGORIES = ["Recipes", "Daily Journal", "'Class' Notes", "Movies To Watch", "Blog", "Types of Animals",
+                      "Biology", "Physics", "Math 101", "Computer Parts", "Vehicle Parts", "Quotes", "Book Reviews",
+                      "Websites", "Computer Science", "French Notes", "German Notes"]
 
-TCL_PATH = "Core/tcl_files/azure.tcl"
+AZURE_THEME_PATH = "Core/themes/Azure/azure.tcl"
+AZURE_THEME = "azure-dark"
+SUN_VALLEY_THEME_PATH = "Core/themes/Sun-Valley/sun-valley.tcl"
+SUN_VALLEY_THEME = "sun-valley-dark"
 
-TAB_LIMIT = 4
-ENTRY_LIMIT = 20
-
-ENTRY_COLOR = "#848689"
-
-DEFAULT_FONT = ("Arial", 12)
-DEFAULT_FONT_TAB = "Arial"
-DEFAULT_FONT_SIZE = '12'
-DEFAULT_FONT_UNDERLINE = ("Arial", 12, "underline")
-DEFAULT_FONT_UNDERLINE_BOLD = ("Arial", 14, "underline", "bold")
-DEFAULT_FONT_BOLD = ("Arial", 12, "bold")  # For login page
-TAB_FONT = ("Arial", 12, 'bold')
-
-BUTTON_BG = "#007fff"  # For login buttons
-BLACK = "#252826"  # For listbox highlight
+DEFAULT_FONT = ("Arial", 12)  # Everything else font
+DEFAULT_FONT_BOLD = ("Arial", 12, "bold")  # Header  font
+DEFAULT_FONT_UNDERLINE_BOLD = ("Arial", 14, "underline", "bold")  # Title font
+COLORS = ['custom', 'red', 'blue', 'green', 'orange', 'white', 'grey', 'black', 'purple', 'brown', 'yellow', 'violet']

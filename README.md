@@ -10,14 +10,15 @@ I built it to keep track of notes of what I'm studying and learning.
 - Manual and auto-backup feature so user won't lose any entries.
 - Restore feature if data gets corrupted/lost or deleted.
 - Import and export feature for user's data.
+- Styling support for changing color foregrounds.
+- Color picker for all the styling options.
 
 # Credits
-Credit to rdbende for the azure theme, I've slightly modified and taken out the things the program doesn't use.
+Credit to rdbende for the theme, I've slightly modified it to accommodate this application.
 
 # Requirements
 - pyenchant 3.2.2
 - Pillow 9.2.0
-- cryptography 37.0.4
 
 ![ScreenShot](/Screenshots/main_menu.PNG)
 ![ScreenShot](/Screenshots/Interface.PNG)

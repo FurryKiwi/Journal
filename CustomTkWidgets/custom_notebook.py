@@ -11,16 +11,21 @@ except ImportError:  # Python 3
 
 class DefaultNotebook(ttk.Notebook):
     TAB_FONT = ("Arial", 12, 'bold')
-    BUTTON_BG = "#007fff"
+    BUTTON_BG = "#007fff"  # Change this to whatever color you need for when no theme is specified
+    __slots__ = "root", "theme", "style", "_active", "packed"
 
-    def __init__(self, root, theme: str = None, *args, **kwargs):
+    def __init__(self, root, theme: bool = False, *args, **kwargs):
         kwargs['style'] = "TNotebook"
         ttk.Notebook.__init__(self, root, *args, **kwargs)
         self.root = root
+        # If no theme is specified, it will create its own custom elements
+        # to close the notebook tabs
         if theme:
             self.theme = theme
-        self.style = ttk.Style(self.root)
-        self.__initialize_custom_style()
+            self.style = ttk.Style(self.root)
+            self.style.theme_create("TNotebook")
+            self.style.theme_use("TNotebook")
+            self.__initialize_custom_style()
 
         self._active = None
         self.packed = False
@@ -125,11 +130,39 @@ class DefaultNotebook(ttk.Notebook):
                 ]
             })
         ])
-        if self.theme is not None:
-            self.style.theme_settings(self.theme, {
-                "TNotebook": {"configure": {"font": self.TAB_FONT, "padding": [0, 0], "focuscolor": "."}},
+        if self.theme:
+            self.style.theme_settings("TNotebook", {
                 "TNotebook.Tab": {
                     "configure": {"padding": [2, 4], "font": self.TAB_FONT, "focuscolor": "."},
                     "map": {"background": [("selected", self.BUTTON_BG)],
-                            "expand": [("selected", [0, 0, 0, 0])]}}
+                            "expand": [("selected", [0, 2, 0, 0])]}}
             })
+
+
+# Testing purposes ----------------------------
+if __name__ == '__main__':
+    import Scripts.utils as utils
+
+    root = tk.Tk()
+    utils.set_window(root, 400, 400, "Test Notebook")
+    frame = tk.Frame(root)
+    frame.pack(expand=True, fill='both', pady=4)
+
+    notebook = DefaultNotebook(frame, theme=True)
+    notebook.pack(side='top', expand=True, fill='both')
+
+    frame1 = tk.Frame(notebook)
+    tk.Label(frame1, text="Blah Blah Blah").pack()
+    tk.Label(frame1, text="Blah Blah").pack()
+    tk.Label(frame1, text="Blah").pack()
+    frame1.pack()
+    notebook.add(frame1, text="Frame 1")
+
+    frame2 = tk.Frame(notebook)
+    tk.Label(frame2, text="Yes yes yes").pack()
+    tk.Label(frame2, text="yes yes").pack()
+    tk.Label(frame2, text="no no").pack()
+    frame2.pack()
+    notebook.add(frame2, text="Frame 2")
+
+    root.mainloop()

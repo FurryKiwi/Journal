@@ -197,12 +197,14 @@ def print_checked(widget):
 
 if __name__ == '__main__':
     from Scripts.utils import *
-    tcl_path = "Core/tcl_files/azure.tcl"
     root = tk.Tk()
+    tcl_path = "Core/tcl_files/azure.tcl"
     root.tk.call("source", tcl_path)
     root.tk.call("set_theme", "dark")
-    set_window(root, 200, 100, "Test", resize=True)
+    set_window(root, 300, 300, "To Do List", resize=True)
+
     data = ["This", "Is", "Some", "test", "Infomation", "and", "some", "more"]
+
     ttk.Button(root, text="Print Checked", style="Accent.TButton", command=lambda: print_checked(test)).pack()
 
     test = CustomToDoList(root, "ToDoList", data)

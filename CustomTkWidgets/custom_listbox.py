@@ -7,6 +7,7 @@ except ImportError:  # Python 3
 
 
 class DefaultListbox(tk.Listbox):
+    __slots__ = "root", "selection", "shifting", "ctrl_clicked", "index_lock"
 
     def __init__(self, root, **kw):
         tk.Listbox.__init__(self, root, **kw)

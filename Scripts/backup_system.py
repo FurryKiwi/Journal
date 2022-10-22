@@ -189,12 +189,14 @@ class BackUpSystem:
         self.top_window.destroy()
 
     def load_restored_data(self, filepath: str, top_level):
+        if filepath is None:
+            return
         filepath = os.path.join(os.getcwd(), "Back Ups", self.data_handler.current_user, filepath)
         read_data = utils.read_json(filepath, data={})
         raw_data, check = utils.decode_string(read_data, self.data_passes, json_object=True)
 
         if not check:
-            tk.messagebox.showinfo("Error", "Can't restore someone else's data.", parent=top_level)
+            tk.messagebox.showinfo("Error", "Can't restore that data.", parent=top_level)
             return None
         else:
             self.top_window.destroy()

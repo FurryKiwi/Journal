@@ -282,16 +282,6 @@ class Journal:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
 
-# TODO: When creating an account, make the user add their birthdate so they can recover their password with their
-#   birthday instead, if they forget their pw.
-# TODO: Create seperate backups for each user based on the date it was created.
-
-# TODO: Look into how to dynamically resize the buttons based off of text and font size inside of them. I don't know if
-#  I'll have to make a custom class for every button that has that kind of functionality but if I must then I must.
-# TODO: Add in color styling into the text area and figure out some way to save that into the json file. Maybe even
-#  add tags for bold and underline.
-# TODO: Add in inspirational quotes instead of the background images, also perhaps add a random quote into the login
-#  page to give it more character.
 if __name__ == '__main__':
     r = tk.Tk()
     Journal("Journal", r)

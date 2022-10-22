@@ -32,7 +32,7 @@ class TreeView(ttk.Treeview):
         else:
             self.item_selected = self.item(item)['text']
 
-    def add_elements(self, category: str, elements: list):
+    def add_elements(self, category: str = None, elements: list = None):
         """Adds items to the treeview with the category being the parent and elements being the children."""
         cat = ''
         if self.parents is not None:
@@ -135,3 +135,8 @@ class TreeView(ttk.Treeview):
                     texts = [self.item(i)['text'] for i in temp]
                     all_data.update({self.item(cat)['text']: texts})
             return all_data
+
+    def get_selected_element(self):
+        elements = self.selection()
+        print(elements, type(elements))
+        return elements

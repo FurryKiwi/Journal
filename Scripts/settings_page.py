@@ -146,8 +146,8 @@ class GeneralSection:
         # To make sure there are no duplicates being added.
         self._supported_fonts = set(self._supported_fonts)
 
-        ttk.Button(self.parent, text="Reset To Defaults", style="Accent.TButton",
-                   command=self.reset_config).pack(side='top', anchor='ne', padx=4, pady=4)
+        ttk.Button(self.parent, text="Reset To Defaults", style="Accent.TButton", width=16,
+                   command=self.reset_config).pack(side='top', anchor='nw', padx=4)
 
         self.main_frame = ttk.Frame(self.parent)
         self.main_frame.pack(side='top', expand=True, fill='both')
@@ -501,6 +501,8 @@ class BackupSection:
         self.main_frame = ttk.Frame(self.parent)
         self.main_frame.pack(side='top', expand=True, fill='both')
 
+        self.root.bind("<<RestoredData>>", lambda event=None: self.setup())
+
         self.create_ui()
 
     def create_ui(self):
@@ -538,17 +540,17 @@ class BackupSection:
 
     def restore_user(self) -> None:
         """Calls the restore function of the current user's data."""
-        if tk.messagebox.askyesno("Restore", "Are you sure you want to restore?", parent=self.top_level):
-            check = self.data_handler.restore_backup()
-            if check:
-                self.main_layout.notebook.close_tabs(clearing=True)
-                self.main_layout.update_categories()
-                self.main_layout.set_category_list()
-                self.main_layout.update_list()
+        self.data_handler.restore_backup(self.top_level)
+
+    def setup(self):
+        self.main_layout.notebook.close_tabs(clearing=True)
+        self.main_layout.update_categories()
+        self.main_layout.set_category_list()
+        self.main_layout.update_list()
         self.top_level.focus_set()
 
     def backup_data(self) -> None:
-        if tk.messagebox.askyesno("Backup Data", "Are you sure you want to overwrite your backed up data?",
+        if tk.messagebox.askyesno("Backup Data", "Are you sure you want to backup your data?",
                                   parent=self.top_level):
             self.data_handler.backup_data()
         self.top_level.focus_set()

@@ -373,17 +373,20 @@ class DataHandler:
 
     def backup_data(self) -> None:
         """Calls the backup user method from the BackupSystem with the current user and data."""
-        self.backup_sys.backup_user(self.current_user, self.data)
+        self.backup_sys.backup_user(self.current_user, self.data, self._data_passes)
 
-    def restore_backup(self) -> bool:
+    def restore_backup(self, top_level):
         """Gets the backed up data from the BackupSystem for the current user.
         Sets the grabbed data and returns boolean."""
-        temp_data = self.backup_sys.restore_user(self.current_user)
-        if temp_data != {}:
-            self.data = temp_data
-            return True
-        else:
-            return False
+        self.backup_sys.create_restore_view(self._data_passes, top_level)
+        # if temp_data is None:
+        #     return False
+        # if temp_data != {}:
+        #     self.data = temp_data
+        #     return True
+
+    def restore_data(self, data):
+        self.data = data
 
     def cancel_backup(self) -> None:
         """Calls the cancel backup function."""
@@ -392,7 +395,7 @@ class DataHandler:
     def start_auto_backup(self, time_frame: str) -> None:
         """Calls the auto backup function."""
         milliseconds = self._time_frames[time_frame]
-        self.backup_sys.start_auto_backup(self.current_user, milliseconds)
+        self.backup_sys.start_auto_backup(self.current_user, milliseconds, self._data_passes)
 
     def get_data(self) -> dict:
         return self.data

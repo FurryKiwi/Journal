@@ -822,7 +822,7 @@ class Layout(tk.Frame):
         self.list_box.config(yscrollcommand=vert_scroll_bar.set)
 
         # Notebook frame
-        self.notebook_frame = ttk.Frame(self.root, relief="ridge")
+        self.notebook_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2)
         self.notebook = CustomNotebook(self.notebook_frame, data_handler=self.data_handler,
                                        alert_system=self.alert_system,
                                        width=SCREEN_WIDTH, height=SCREEN_HEIGHT)

@@ -162,16 +162,22 @@ class Journal:
             return
 
     def azure_theme(self):
-        self.data_handler.theme["theme"] = AZURE_THEME
-        self.data_handler.theme["theme_path"] = AZURE_THEME_PATH
-        self._on_restart()
-        os.execv(self._path_to_py_exe, ['python'] + self._path_to_py_file)
+        if tk.messagebox.askyesno("Azure Theme", "Are you sure you want to change themes?"):
+            self.data_handler.theme["theme"] = AZURE_THEME
+            self.data_handler.theme["theme_path"] = AZURE_THEME_PATH
+            self._on_restart()
+            os.execv(self._path_to_py_exe, ['python'] + self._path_to_py_file)
+        else:
+            return
 
     def sun_valley_theme(self):
-        self.data_handler.theme["theme"] = SUN_VALLEY_THEME
-        self.data_handler.theme["theme_path"] = SUN_VALLEY_THEME_PATH
-        self._on_restart()
-        os.execv(self._path_to_py_exe, ['python'] + self._path_to_py_file)
+        if tk.messagebox.askyesno("Sun Valley Theme", "Are you sure you want to change themes?"):
+            self.data_handler.theme["theme"] = SUN_VALLEY_THEME
+            self.data_handler.theme["theme_path"] = SUN_VALLEY_THEME_PATH
+            self._on_restart()
+            os.execv(self._path_to_py_exe, ['python'] + self._path_to_py_file)
+        else:
+            return
 
     def _log_out(self):
         if tk.messagebox.askyesno("Log Out", "Do you want to log out?", parent=self.root):
@@ -186,6 +192,12 @@ class Journal:
             menus = self.find_widgets("Menu")
             for i in menus:
                 i.delete(0, len(menus))
+            if self.settings_page is not None:
+                self.settings_page.destroy()
+            if self.export_page is not None:
+                self.export_page.destroy()
+            if self.import_page is not None:
+                self.import_page.destroy()
             self.create_login_page()
 
     def _on_closing(self) -> None:
@@ -270,6 +282,16 @@ class Journal:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
 
+# TODO: When creating an account, make the user add their birthdate so they can recover their password with their
+#   birthday instead, if they forget their pw.
+# TODO: Create seperate backups for each user based on the date it was created.
+
+# TODO: Look into how to dynamically resize the buttons based off of text and font size inside of them. I don't know if
+#  I'll have to make a custom class for every button that has that kind of functionality but if I must then I must.
+# TODO: Add in color styling into the text area and figure out some way to save that into the json file. Maybe even
+#  add tags for bold and underline.
+# TODO: Add in inspirational quotes instead of the background images, also perhaps add a random quote into the login
+#  page to give it more character.
 if __name__ == '__main__':
     r = tk.Tk()
     Journal("Journal", r)

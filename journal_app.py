@@ -253,6 +253,7 @@ class Journal:
     def run(self) -> None:
         # Set window
         utils.set_window(self.root, SCREEN_WIDTH, SCREEN_HEIGHT, self.title, resize=True)
+        self.root.minsize(width=800, height=550)
         self.root.bind("<<AutoBackupRun>>", lambda event=None: self.main_layout.notebook.save_text())
         self.root.bind("<Control-f>", lambda event=None: self.search_engine.create_view())
 

@@ -320,6 +320,7 @@ class LoginPage(ttk.Notebook):
             self.reset_users_combo.set("SignUp")
 
     def run(self) -> None:
+        self.root.minsize(330, 325)
         self.password_login.focus_force()
         self.event_handling()
         self.root.update_idletasks()

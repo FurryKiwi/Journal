@@ -138,5 +138,5 @@ class TreeView(ttk.Treeview):
 
     def get_selected_element(self):
         elements = self.selection()
-        print(elements, type(elements))
+        # print(elements, type(elements))
         return elements

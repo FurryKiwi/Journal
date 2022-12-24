@@ -148,7 +148,6 @@ def set_window(root, w, h, title, resize: bool = False, offset: tuple[int, int] 
         root.resizable(1, 1)
     else:
         root.resizable(0, 0)
-    root.focus_force()
 
 
 def create_labels_grid(frame: tk.Frame | ttk.Frame, text: list, font: tuple[str, int], style: str, pad_y: int,

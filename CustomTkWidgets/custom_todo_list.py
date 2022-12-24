@@ -8,6 +8,8 @@ except ImportError:  # Python 3
     from tkinter import ttk
     from tkinter import messagebox, filedialog
 
+from custom_scrollable_frames import VerticalScrolledFrame
+
 
 class CustomToDoList(ttk.Frame):
     """Custom Check List that will add check-buttons to every element in a given list."""
@@ -22,26 +24,13 @@ class CustomToDoList(ttk.Frame):
         self.root = root
         self.vars = []
         self.check_buttons = []
+        self.frame = VerticalScrolledFrame(self)
+        self.frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=tk.TRUE, anchor='center')
 
         ttk.Label(self, text=title, font=self.DEFAULT_FONT).pack(side='top', padx=4, pady=4)
 
-        self.canvas = tk.Canvas(self, borderwidth=0)
-        self.frame = ttk.Frame(self.canvas)
-        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.vsb.set)
-
-        self.vsb.pack(side='right', fill='y')
-        self.canvas.pack(side='top')
-        self.canvas.create_window((0, 0), window=self.frame, anchor='nw',
-                                  tags="self.frame")
-
-        self.frame.bind("<Configure>", self.on_frame_configure)
-
         if todo_list:
             self._initial_creation(todo_list)
-
-    def on_frame_configure(self, event):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def _initial_creation(self, values: list) -> None:
         for choice in values:
@@ -50,7 +39,7 @@ class CustomToDoList(ttk.Frame):
             if choice not in already_added:
                 var = tk.StringVar(value=choice)
                 self.vars.append(var)
-                cb = ttk.Checkbutton(self.frame, variable=var, text=choice,
+                cb = ttk.Checkbutton(self.frame.interior, variable=var, text=choice,
                                      onvalue=choice, offvalue="",
                                      width=self.width, style="TCheckbutton", takefocus=False
                                      )
@@ -65,6 +54,7 @@ class CustomToDoList(ttk.Frame):
         menu.add_command(label="Deselect All", command=lambda: self.deselect_all())
         menu.add_command(label="Add Element", command=lambda: self.create_win())
         menu.add_command(label="Remove Element", command=lambda: self.remove_element(event))
+        menu.add_command(label="Remove All Selected", command=lambda e=None: self.remove_all_selected())
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
@@ -146,7 +136,7 @@ class CustomToDoList(ttk.Frame):
             if value not in already_added:
                 var = tk.StringVar(value=value)
                 self.vars.append(var)
-                cb = ttk.Checkbutton(self.frame, variable=var, text=value,
+                cb = ttk.Checkbutton(self.frame.interior, variable=var, text=value,
                                      onvalue=value, offvalue="",
                                      width=self.width, style="TCheckbutton", takefocus=False
                                      )
@@ -171,11 +161,29 @@ class CustomToDoList(ttk.Frame):
                 to_be_removed = index
         del self.vars[to_be_removed]
 
+    def remove_all_selected(self):
+        to_be_removed = []
+        to_be_deleted = []
+        for index, btn in enumerate(self.check_buttons):
+            val = btn.cget('onvalue')
+            for i, v in enumerate(self.vars):
+                if v.get() == val:
+                    to_be_removed.append(i)
+                    btn.pack_forget()
+                    to_be_deleted.append(index)
+        for i in to_be_deleted:
+            del self.check_buttons[i]
+        for i in to_be_removed:
+            del self.vars[i]
+
     def get_all_items(self) -> list:
         return [cbb.cget('onvalue') for cbb in self.check_buttons]
 
     def get_checked_items(self) -> list:
         return [var.get() for var in self.vars if var.get()]
+
+    def get_btn_checked(self) -> list:
+        return [var for var in self.vars if var.get()]
 
     def select_all(self) -> None:
         variables = self.get_checked_items()
@@ -195,10 +203,13 @@ def print_checked(widget):
     print(widget.get_checked_items())
 
 
+# TODO: Add functionality for removing all selected items.
+
+
 if __name__ == '__main__':
     from Scripts.utils import *
     root = tk.Tk()
-    tcl_path = "Core/tcl_files/azure.tcl"
+    tcl_path = "C:/Users/nmich/Documents/GitHub/Journal/Core/themes/Azure/azure.tcl"
     root.tk.call("source", tcl_path)
     root.tk.call("set_theme", "dark")
     set_window(root, 300, 300, "To Do List", resize=True)

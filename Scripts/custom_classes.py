@@ -22,6 +22,7 @@ from CustomTkWidgets.custom_combobox import AutocompleteCombobox
 from CustomTkWidgets.custom_listbox import DefaultListbox
 from CustomTkWidgets.custom_treeview import TreeView
 from CustomTkWidgets.custom_notebook import DefaultNotebook
+from CustomTkWidgets.custom_todo_list import CustomToDoList
 from Scripts.settings import *
 import Scripts.utils as utils
 
@@ -239,19 +240,30 @@ class TabArea(tk.Frame):
     _font_sizes = [str(x) for x in range(10, 20, 2)]
     _default_font_tab = "Arial"
     _default_size_tab = "12"
-    __slots__ = "notebook", "data_handler", "alert_system", "checklist", "_supported_fonts", "text_frame", \
-                "font_choices", "font_size_choices", "spell_check_btn", "text_area", "save_btn"
+    __slots__ = "notebook", "data_handler", "alert_system", "_supported_fonts", \
+                "font_choices", "font_size_choices", "text_area", "save_btn", "definition", \
+                "category"
 
-    def __init__(self, notebook, data_handler, category, definition, alert_system, **kwargs):
+    def __init__(self, notebook, data_handler, category, definition, alert_system, main_layout, **kwargs):
         tk.Frame.__init__(self, notebook, **kwargs)
         self.data_handler = data_handler
         self.notebook = notebook
         self.alert_system = alert_system
-        self.checklist = None
+        self.main_layout = main_layout
         self._supported_fonts = [i for i in tkfont.families()]
+        self.category = category
+        self.definition = definition
+        self.font_choices = None
+        self.font_size_choices = None
+        self.text_area = None
+        self.save_btn = None
 
-        top_frame = tk.Frame(self)
-        self.text_frame = tk.Frame(self, borderwidth=4)
+        self.create_ui()
+
+    def create_ui(self):
+
+        top_frame = tk.Frame(self, borderwidth=1, relief='sunken')
+        text_frame = tk.Frame(self, borderwidth=1)
         bottom_frame = tk.Frame(self)
 
         # Top frame widgets
@@ -260,70 +272,83 @@ class TabArea(tk.Frame):
         self.font_choices.pack(side='left', padx=4, pady=4)
         self.font_choices.bind("<<ComboboxSelected>>",
                                lambda event=None: self.change_font(self.font_choices.get(),
-                                                                   self.font_size_choices.get(), category,
-                                                                   definition))
+                                                                   self.font_size_choices.get()))
 
         self.font_size_choices = ttk.Combobox(top_frame, values=self._font_sizes, width=4,
                                               font=DEFAULT_FONT, state="readonly", style="R.TCombobox")
         self.font_size_choices.pack(side='left', padx=4, pady=4)
         self.font_size_choices.bind("<<ComboboxSelected>>",
                                     lambda event=None: self.change_font(self.font_choices.get(),
-                                                                        self.font_size_choices.get(), category,
-                                                                        definition))
+                                                                        self.font_size_choices.get()))
 
-        self.spell_check_btn = ttk.Button(top_frame, text="Spell Check", style="Accent.TButton",
-                                          command=self.spell_check)
-        self.spell_check_btn.pack(side='left', pady=4, padx=4)
+        spell_check_btn = ttk.Button(top_frame, text="Spell Check", style="Accent.TButton",
+                                     command=self.spell_check)
+        spell_check_btn.pack(side='left', pady=4, padx=4)
 
         # Create the text area
-        self.text_area = TextArea(self.text_frame, self.data_handler, category, definition, self.alert_system,
-                                  font=self.get_current_font(category, definition), padx=2, spacing3=2, wrap=tk.WORD,
+        self.text_area = TextArea(text_frame, self.data_handler, self.category, self.definition, self.alert_system,
+                                  font=self.get_current_font(), padx=2, spacing3=2,
+                                  wrap=tk.WORD,
                                   undo=True)
         self.text_area.pack(side='top', fill='both', expand=True)
 
         # Bottom Frame layout
         time_stamp = ttk.Label(bottom_frame, font=DEFAULT_FONT, style="R.TLabel",
-                               text=f"Created: {self.data_handler.get_timestamp_by_definition(category, definition)}")
-        self.save_btn = ttk.Button(bottom_frame, text="Save", style="Accent.TButton",
-                                   command=lambda: self.save_text(category, definition,
-                                                                  self.text_area.get(1.0, "end-1c")))
-
+                               text=f"Created: {self.data_handler.get_timestamp_by_definition(self.category, self.definition)}")  # NOQA
         time_stamp.pack(side="left", pady=8, padx=8)
+
+        self.save_btn = ttk.Button(bottom_frame, text="Save", style="Accent.TButton",
+                                   command=lambda: self.save_text(self.text_area.get(1.0, "end-1c")))
         self.save_btn.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        delete_btn = ttk.Button(bottom_frame, text="Delete", style="Accent.TButton",
+                                command=self.delete_definition)
+        delete_btn.pack(side='right', padx=8, pady=8)
 
         top_frame.pack(side='top', fill='x')
         bottom_frame.pack(side="bottom", fill='x')
-        self.text_frame.pack(side='top', fill='both', expand=True)
+        text_frame.pack(side='top', fill='both', expand=True)
 
         self.text_area.bind("<End>", lambda event=None: self.notebook.close_tabs(
-            self.notebook.get_tab_frames([definition]), save=True))
+            self.notebook.get_tab_frames([self.definition]), save=True))
 
-        self.set_combobox(category, definition)
+        self.set_combobox()
 
     def spell_check(self):
         self.text_area.make_thread(self.text_area.spell_check)
 
-    def save_text(self, category: str, definition: str, text: str) -> None:
-        self.data_handler.add_text(category, definition, text)
+    def save_text(self, text: str) -> None:
+        self.data_handler.add_text(self.category, self.definition, text)
         self.data_handler.update_json()
         self.alert_system.show_alert(("Entry has been saved.", "white"))
 
-    def get_current_font(self, category, definition):
-        return self.data_handler.get_tab_font(category, definition)
+    def delete_definition(self):
+        """Deletion of definitions from the given category list."""
+        if tk.messagebox.askyesno("Are you sure?", "Deleting is permanent!"):
+            check = self.data_handler.delete_definition(self.category, [self.definition])
+            if check:
+                close_list = self.notebook.get_tab_frames([self.definition])
+                self.notebook.close_tabs(close_list=close_list)
+                self.main_layout.update_list()
+            else:
+                self.alert_system.show_alert(("Definition doesn't exist.", "red"))
 
-    def change_font(self, font: str, size: str, category: str, definition: str) -> None:
+    def get_current_font(self):
+        return self.data_handler.get_tab_font(self.category, self.definition)
+
+    def change_font(self, font: str, size: str) -> None:
         """Changes font in the text area, and saves the font to the database."""
         new_font = font, int(size)
         self.text_area.config(font=new_font)
         self.font_size_choices.selection_clear()
         self.font_choices.selection_clear()
-        self.data_handler.set_tab_font(category, definition, new_font)
+        self.data_handler.set_tab_font(self.category, self.definition, new_font)
 
-    def set_combobox(self, category: str, definition: str) -> None:
+    def set_combobox(self) -> None:
         """Sets the font and size that was last used by that tab."""
         fonts = self.font_choices['values']
         sizes = self.font_size_choices['values']
-        f, s = self.data_handler.get_tab_font(category, definition)
+        f, s = self.data_handler.get_tab_font(self.category, self.definition)
         _use_default_font = False
         _use_default_size = False
         if f not in fonts:
@@ -344,6 +369,118 @@ class TabArea(tk.Frame):
         else:
             index = [index for index, i_d in enumerate(sizes) if i_d == str(s)]
             self.font_size_choices.current(index[0])
+
+
+class TDLTabArea(tk.Frame):
+    __slots__ = "root", "notebook", "data_handler", "alert_system", "to_do_list", "save_btn", "definition", "category"
+
+    def __init__(self, root, notebook, data_handler, category, definition, alert_system, main_layout, **kwargs):
+        tk.Frame.__init__(self, notebook, **kwargs)
+        self.root = root
+        self.notebook = notebook
+        self.data_handler = data_handler
+        self.alert_system = alert_system
+        self.main_layout = main_layout
+        self.category = category
+        self.definition = definition
+        self.to_do_list = None
+        self.save_btn = None
+
+        self.create_ui()
+
+    def create_ui(self):
+        text = self.data_handler.get_text_by_definition(self.category, self.definition)
+        all_elements, selected_elements = self.parse_text(text)
+
+        top_frame = tk.Frame(self, borderwidth=1, relief="sunken")
+        list_frame = tk.Frame(self, borderwidth=1, relief="sunken")
+        bottom_frame = tk.Frame(self)
+
+        # Middle Frame widgets
+        self.to_do_list = CustomToDoList(list_frame, self.root, todo_list=all_elements,
+                                         entry_limit=self.data_handler.tdl_limit)
+        self.to_do_list.pack(expand=True, fill="both")
+        # Auto select elements
+        self.to_do_list.select_elements(selected_elements)
+
+        # Top Frame widgets
+        select_all_btn = ttk.Button(top_frame, text="Select", style="Accent.TButton",
+                                    command=self.to_do_list.select_all)
+        select_all_btn.pack(side='left', padx=4, pady=4)
+        deselect_all_btn = ttk.Button(top_frame, text="Deselect", style="Accent.TButton",
+                                      command=self.to_do_list.deselect_all)
+        deselect_all_btn.pack(side='left', padx=4, pady=4)
+        add_elements = ttk.Button(top_frame, text="Add", style="Accent.TButton",
+                                  command=self.to_do_list.create_win)
+        add_elements.pack(side='left', padx=4, pady=4)
+        remove_elements = ttk.Button(top_frame, text="Remove", style="Accent.TButton",
+                                     command=self.to_do_list.remove_all_selected)
+        remove_elements.pack(side='left', padx=4, pady=4)
+
+        # Bottom Frame layout
+        time_stamp = ttk.Label(bottom_frame, font=DEFAULT_FONT, style="R.TLabel",
+                               text=f"Created: {self.data_handler.get_timestamp_by_definition(self.category, self.definition)}")  # NOQA
+        time_stamp.pack(side="left", pady=8, padx=8)
+
+        self.save_btn = ttk.Button(bottom_frame, text="Save", style="Accent.TButton",
+                                   command=lambda: self.save_list(self.convert_to_text()))
+        self.save_btn.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        delete_btn = ttk.Button(bottom_frame, text="Delete", style="Accent.TButton",
+                                command=self.delete_definition)
+        delete_btn.pack(side='right', padx=8, pady=8)
+
+        top_frame.pack(side='top', fill='x')
+        list_frame.pack(expand=True, fill='both')
+        bottom_frame.pack(side="bottom", fill='x')
+
+    def save_list(self, text: str) -> None:
+        self.data_handler.add_text(self.category, self.definition, text)
+        self.data_handler.update_json()
+        self.alert_system.show_alert(("Entry has been saved.", "white"))
+
+    def delete_definition(self):
+        """Deletion of definitions from the given category list."""
+        if tk.messagebox.askyesno("Are you sure?", "Deleting is permanent!"):
+            check = self.data_handler.delete_definition(self.category, [self.definition])
+            if check:
+                close_list = self.notebook.get_tab_frames([self.definition])
+                self.notebook.close_tabs(close_list=close_list)
+                self.main_layout.update_list()
+            else:
+                self.alert_system.show_alert(("Definition doesn't exist.", "red"))
+
+    def convert_to_text(self):
+        checked_ele = self.to_do_list.get_checked_items()
+        all_ele = self.to_do_list.get_all_items()
+        added_elements = []
+        text = ""
+        for i in all_ele:
+            if i not in checked_ele:
+                i += "0,"
+                added_elements.append(i)
+        for i in checked_ele:
+            i += "1,"
+            added_elements.append(i)
+        for i in added_elements:
+            text += i
+        return text
+
+    def parse_text(self, text):
+        selected = []
+        entries = text.split(",")
+        all_elements = []
+        for w in entries:
+            if w[-1:] == "0":
+                w = w[:-1]
+                if not w == '':
+                    all_elements.append(w)
+            else:
+                w = w[:-1]
+                if not w == '':
+                    selected.append(w)
+                    all_elements.append(w)
+        return all_elements, selected
 
 
 class SearchEngine:
@@ -455,7 +592,7 @@ class ImportView(tk.Toplevel):
         self._setup_tree_view()
         self.update_list()
         self.root.event_generate("<<ImportExportCreated>>")
-        utils.set_window(self, 700, 500, "Import", offset=(0, 100))
+        utils.set_window(self, 700, 500, "Import", parent=self.root, offset=(-280, -200))
 
     def create_ui(self):
         # Left Frame
@@ -607,7 +744,7 @@ class ExportView(tk.Toplevel):
         self.create_ui()
         self.update_list()
         self.root.event_generate("<<ImportExportCreated>>")
-        utils.set_window(self, 700, 500, "Export", offset=(0, 100))
+        utils.set_window(self, 700, 500, "Export", parent=self.root, offset=(-280, -200))
 
     def create_ui(self):
         # Left Frame
@@ -632,7 +769,6 @@ class ExportView(tk.Toplevel):
         self.category_box = ttk.Combobox(top_left_frame, values=self.data_handler.get_categories_by_list(),
                                          font=DEFAULT_FONT, state="readonly", style="R.TCombobox")
         self.category_box.pack(side='top', padx=4, pady=4)
-        self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
 
         # Create the listbox to display all the definitions
         self.list_box = CustomListBox(top_left_frame, height=SCREEN_HEIGHT, font=DEFAULT_FONT,
@@ -688,10 +824,10 @@ class ExportView(tk.Toplevel):
         category = self.category_box.get()
         if self.list_box.size() != 0:
             self.list_box.delete(0, self.list_box.size())
-        temp_list = self.data_handler.get_definitions_by_list(category)
+        definition_list = self.data_handler.get_definitions_by_list(category)
         self.list_box.category = category
-        if temp_list is not None:
-            for definition in temp_list:
+        if definition_list is not None:
+            for definition in definition_list:
                 self.list_box.insert(tk.END, definition)
         self.category_box.selection_clear()
 
@@ -724,9 +860,9 @@ class ExportView(tk.Toplevel):
 
 
 class Layout(tk.Frame):
-    __slots__ = "tk_window", "root", "data_handler", "alert_system", "copied_definition", "copied_text", \
-                "copied_font", "copied_time_stamp", "category_frame", "category_box", "def_entry", \
-                "add_definition_btn", "list_box", "notebook_frame", "notebook", "pin_color"
+    __slots__ = "tk_window", "root", "data_handler", "alert_system", "category_frame", "category_box", "def_entry", \
+                "add_definition_btn", "list_box", "notebook_frame", "notebook", "pin_color", \
+                "copied_definition_list", "add_tdl_btn"
 
     def __init__(self, root, canvas, data_handler, alert_system, **kwargs):
         tk.Frame.__init__(self, canvas, **kwargs)
@@ -735,16 +871,16 @@ class Layout(tk.Frame):
         self.data_handler = data_handler
         self.alert_system = alert_system
         self.alert_system.layout = self
-        self.copied_definition = None
-        self.copied_text = None
-        self.copied_font = None
-        self.copied_time_stamp = None
+        self.calender_window = None
+        self.todolist_window = None
+        self.copied_definition_list = []
 
         self.category_frame = None
         self.category_box = None
 
         self.def_entry = None
         self.add_definition_btn = None
+        self.add_tdl_btn = None
         self.list_box = None
 
         self.notebook_frame = None
@@ -760,12 +896,17 @@ class Layout(tk.Frame):
     def create_ui(self):
         parent_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2, width=30)
         parent_frame.pack(anchor='nw', fill='x', pady=8, padx=8)
-        # parent_frame.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.17, bordermode="inside")
 
         # listbox frame
         listbox_frame = ttk.Frame(self.root, width=100,
                                   height=SCREEN_HEIGHT, relief="ridge", borderwidth=8)
         listbox_frame.pack(fill='both', side='left', padx=8, pady=8)
+
+        button_frame = ttk.Frame(listbox_frame)
+        button_frame.pack(fill='x', side='top')
+
+        lb_frame = ttk.Frame(listbox_frame)
+        lb_frame.pack(fill='both', side='top', expand=True)
 
         self.category_frame = ttk.Frame(parent_frame)
         self.category_frame.pack(side='left', anchor='w', expand=True, fill='x')
@@ -773,11 +914,12 @@ class Layout(tk.Frame):
         user_name_frame = ttk.Frame(parent_frame)
         user_name_frame.pack(side='right', anchor='se')
 
+        # Category frame
         ttk.Label(self.category_frame, text="Categories:", font=DEFAULT_FONT_BOLD,
                   style="H.TLabel").grid(row=0, column=0, pady=6)
 
         ttk.Button(self.category_frame, text="Add", style="Accent.TButton", width=0,
-                   command=lambda: self.add_category_view()).grid(row=1, column=2, pady=4)
+                   command=self.add_category_view).grid(row=1, column=2, pady=4)
 
         # Create the drop-down category
         self.category_box = ttk.Combobox(self.category_frame, values=self.data_handler.get_categories_by_list(),
@@ -791,24 +933,31 @@ class Layout(tk.Frame):
         ttk.Label(user_name_frame, text=f"User: {self.data_handler.current_user}", font=DEFAULT_FONT_BOLD,
                   style="H.TLabel").pack(side='left', anchor='e', padx=4, pady=8)
 
-        ttk.Label(listbox_frame, text="Add Definitions:", font=DEFAULT_FONT_BOLD, style="H.TLabel").pack()
+        # Listbox frame
+        ttk.Label(button_frame, text="Add Definitions:", font=DEFAULT_FONT_BOLD, style="H.TLabel").pack()
 
         # Create the entry and button to add definitions
-        self.def_entry = ttk.Entry(listbox_frame, validate="key", style="R.TEntry",
+        self.def_entry = ttk.Entry(button_frame, validate="key", style="R.TEntry",
                                    validatecommand=(self.root.register(
                                        lambda event: utils.validate_entry(event, self.data_handler.entry_limit)), "%P"),
                                    font=DEFAULT_FONT,
                                    width=21)
         self.def_entry.pack(pady=4, padx=4)
 
-        self.add_definition_btn = ttk.Button(listbox_frame, style="Accent.TButton", text="Add Definition", width=27,
+        self.add_definition_btn = ttk.Button(button_frame, style="Accent.TButton", text="Add Definition",
                                              command=lambda: self.add_definition(
                                                  self.def_entry.get(),
-                                                 self.category_box.get()))
-        self.add_definition_btn.pack(side='top', padx=4, pady=4)
+                                                 self.category_box.get(), tab_type=TEXT))
+        self.add_definition_btn.pack(side='left', padx=4, pady=4, anchor='nw')
+
+        self.add_tdl_btn = ttk.Button(button_frame, style="Accent.TButton", text="Add To Do List",
+                                      command=lambda: self.add_definition(
+                                          self.def_entry.get(),
+                                          self.category_box.get(), tab_type=TDL))
+        self.add_tdl_btn.pack(side='left', padx=4, pady=4, anchor='nw')
 
         # Create the listbox to display all the definitions
-        self.list_box = CustomListBox(listbox_frame, font=DEFAULT_FONT, selectmode=tk.EXTENDED,
+        self.list_box = CustomListBox(lb_frame, font=DEFAULT_FONT, selectmode=tk.EXTENDED,
                                       activestyle='none', data_handler=self.data_handler,
                                       category=self.category_box.current(0),
                                       borderwidth=0, highlightthickness=0)
@@ -823,8 +972,8 @@ class Layout(tk.Frame):
 
         # Notebook frame
         self.notebook_frame = ttk.Frame(self.root, relief="ridge", borderwidth=2)
-        self.notebook = CustomNotebook(self.notebook_frame, data_handler=self.data_handler,
-                                       alert_system=self.alert_system,
+        self.notebook = CustomNotebook(self.root, self.notebook_frame, data_handler=self.data_handler,
+                                       alert_system=self.alert_system, main_layout=self,
                                        width=SCREEN_WIDTH, height=SCREEN_HEIGHT)
 
     # Class Functions
@@ -871,7 +1020,7 @@ class Layout(tk.Frame):
         else:
             self.alert_system.show_alert(("Could not save category.", "red"))
 
-    def add_definition(self, entry: str, category: str, definition=None, window=None) -> None:
+    def add_definition(self, entry: str, category: str, tab_type: str, definition=None, window=None) -> None:
         """Adds the definition entry to the database, calls the update list method,
            and closes the toplevel window if opened and checks if renaming a definition."""
         # Checks if definition is getting renamed
@@ -879,7 +1028,7 @@ class Layout(tk.Frame):
             close_list = self.notebook.get_tab_frames([definition])
             self.notebook.close_tabs(close_list, save=True)
 
-        check = self.data_handler.add_definition(entry, category, definition)
+        check = self.data_handler.add_definition(entry, category, definition, tab_type=tab_type)
         if check:
             self.update_list()
             if window:
@@ -911,36 +1060,26 @@ class Layout(tk.Frame):
             else:
                 self.alert_system.show_alert(("Definition doesn't exist.", "red"))
 
-    def create_view(self, instance: tk.Listbox = None, index: list = None, state: str = None):
-        """Creates the pop-up window for renaming, adding of categories and renaming definitions."""
+    def rename_definition_view(self, instance: tk.Listbox = None, index: list = None):
+        """Creates the pop-up window for renaming definitions."""
         category = self.category_box.get()
-        if state == "rdefinition":
-            definition = instance.get(index)
-            top_window, entry = utils.create_pop_up("Rename Definition", self.root, self.data_handler.entry_limit)
-            top_window.grab_set()
-
-            ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
-                       command=lambda e=None: self.add_definition(entry.get(), category, definition,
-                                                                  window=top_window)).pack(side='top', padx=4, pady=4)
-
-            entry.bind("<Return>",
-                       lambda e=None: self.add_definition(entry.get(), category, definition, window=top_window))
-            entry.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
-
-        elif state == "rcategory":
-            top_window, entry = utils.create_pop_up("Rename Category", self.root, self.data_handler.entry_limit)
-            top_window.grab_set()
-
-            ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
-                       command=lambda: self.add_category(entry.get(), top_window,
-                                                         category)).pack(side='top', padx=4, pady=4)
-
-            entry.bind("<Return>", lambda e=None: self.add_category(entry.get(), top_window, category))
-
-    def add_category_view(self):
-        top_window = tk.Toplevel(self.root)
-        utils.set_window(top_window, 250, 180, "Add Category")
+        definition = instance.get(index)
+        tab_type = self.data_handler.get_tab_type(category, definition)
+        top_window, entry = utils.create_pop_up("Rename Definition", self.root, self.data_handler.entry_limit,
+                                                parent=self.root, offset=(240, 90))
         top_window.grab_set()
+
+        ttk.Button(top_window, text="Save Definition", width=21, style="Accent.TButton",
+                   command=lambda e=None: self.add_definition(entry.get(), category, tab_type, definition,
+                                                              window=top_window)).pack(side='top', padx=4, pady=4)
+
+        entry.bind("<Return>",
+                   lambda e=None: self.add_definition(entry.get(), category, tab_type, definition, window=top_window))
+        entry.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
+
+    def add_category_view(self, category: str = None):
+        top_window = tk.Toplevel(self.root)
+        utils.set_window(top_window, 255, 180, "Add Category", parent=self.root, offset=(190, 55))
 
         ttk.Label(top_window, text="Examples: ", font=DEFAULT_FONT_BOLD, style="H.TLabel").pack(pady=4)
 
@@ -960,9 +1099,10 @@ class Layout(tk.Frame):
 
         ttk.Button(top_window, text="Save Category", width=21, style="Accent.TButton",
                    command=lambda: self.add_category(entry.get(),
-                                                     top_window)).pack(side='top', padx=4, pady=4)
-        entry.bind("<Return>", lambda e=None: self.add_category(entry.get(), top_window))
+                                                     top_window, category)).pack(side='top', padx=4, pady=4)
+        entry.bind("<Return>", lambda e=None: self.add_category(entry.get(), top_window, category))
         examples.bind("<<ComboboxSelected>>", lambda event=None: self.insert_example(entry, examples))
+        top_window.grab_set()
 
     @staticmethod
     def insert_example(entry: ttk.Entry, combobox: ttk.Combobox):
@@ -975,29 +1115,34 @@ class Layout(tk.Frame):
         self.category_box.bind("<<ComboboxSelected>>", lambda event=None: self.update_list())
 
         self.list_box.bind("<Double-1>", lambda event=None: self.notebook.add_tab(
-            self.category_box.get(), self.get_list_box_item()))
+            self.category_box.get(), self.get_list_box_item(),
+            self.data_handler.get_tab_type(self.category_box.get(), self.get_list_box_item())))
 
         self.list_box.bind("<Return>", lambda event=None: self.notebook.add_tab(
-            self.category_box.get(), self.get_list_box_item()))
+            self.category_box.get(), self.get_list_box_item(),
+            self.data_handler.get_tab_type(self.category_box.get(), self.get_list_box_item())))
 
         self.def_entry.bind("<Return>", lambda event=None: self.add_definition_btn.invoke())
         self.def_entry.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
         self.list_box.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
-        self.category_box.bind("<ButtonPress-3>", lambda event=None: self.pop_up_menu(event))
+        self.category_box.bind("<ButtonPress-3>", lambda event: self.pop_up_menu(event))
 
-    def copy_definition(self, entry, index) -> None:
-        """Copies the definition, text, font and timestamp from a given definition."""
-        self.copied_definition = entry.get(index)
-        self.copied_text = self.data_handler.get_text_by_definition(self.category_box.get(), self.copied_definition)
-        self.copied_time_stamp = self.data_handler.get_timestamp_by_definition(self.category_box.get(),
-                                                                               self.copied_definition)
-        self.copied_font = self.data_handler.get_tab_font(self.category_box.get(), self.copied_definition)
-        self.alert_system.show_alert(("Copied definition.", "white"))
+    def copy_definition(self, instance: tk.Listbox, indexes) -> None:
+        """Copies definitions and adds them to the copied_definition_list."""
+        category = self.category_box.get()
+        definitions = [instance.get(i) for i in indexes]
+        for i in definitions:
+            text = self.data_handler.get_text_by_definition(category, i)
+            time_stamp = self.data_handler.get_timestamp_by_definition(category, i)
+            font = self.data_handler.get_tab_font(category, i)
+            tab_type = self.data_handler.get_tab_type(category, i)
+            self.copied_definition_list.append({i: [text, time_stamp, font, tab_type]})
+
+        self.alert_system.show_alert(("Copied definition(s).", "white"))
 
     def paste_definition(self):
-        """Pastes the saved definition."""
-        check = self.data_handler.paste_definition(self.category_box.get(), self.copied_definition, self.copied_text,
-                                                   self.copied_time_stamp, self.copied_font)
+        """Pastes the saved definition(s)."""
+        check = self.data_handler.paste_definition(self.category_box.get(), self.copied_definition_list)
         if check:
             self.update_list()
         else:
@@ -1013,22 +1158,25 @@ class Layout(tk.Frame):
                                     selectforeground=self.list_box['selectforeground'])
         self.list_box.pin = False
 
+    def clear_copied_definitions(self):
+        self.copied_definition_list = []
+
     def pop_up_menu(self, event: (tk.Listbox, ttk.Combobox, ttk.Entry)) -> None:
         """Create a popup menu by right-clicking with options."""
         instance = event.widget
         # Listbox drop down menu
         if isinstance(instance, tk.Listbox):
             menu = tk.Menu(self.root, tearoff=0)
-            menu.add_command(label="Paste",
-                             command=lambda: self.paste_definition())
+            if len(self.copied_definition_list) != 0:
+                menu.add_command(label="Paste", command=lambda: self.paste_definition())
+                menu.add_command(label="Clear Copied text", command=self.clear_copied_definitions)
             index = instance.curselection()
             if index:
                 menu.add_command(label="Delete", command=lambda: self.delete_definition(instance, index))
+                menu.add_command(label="Copy", command=lambda: self.copy_definition(instance, index))
                 if len(index) == 1:
                     menu.add_command(label="Rename",
-                                     command=lambda: self.create_view(instance, index, state='rdefinition'))
-                    menu.add_command(label="Copy",
-                                     command=lambda: self.copy_definition(instance, index))
+                                     command=lambda: self.rename_definition_view(instance, index))
                     pinned = self.data_handler.pinned
                     if instance.get(index) not in pinned.values():
                         menu.add_command(label="Pin To Top",
@@ -1042,35 +1190,57 @@ class Layout(tk.Frame):
             finally:
                 menu.grab_release()
         # Category drop down menu
-        if isinstance(instance, ttk.Combobox):
+        elif isinstance(instance, ttk.Combobox):
             menu = tk.Menu(self.root, tearoff=0)
             menu.add_command(label="Delete", command=self.delete_category)
-            menu.add_command(label="Rename", command=lambda: self.create_view(state="rcategory"))
+            menu.add_command(label="Rename", command=lambda e=None: self.add_category_view(self.category_box.get()))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
                 menu.grab_release()
         # Definition entry drop down menu
-        if isinstance(instance, ttk.Entry):
+        elif isinstance(instance, ttk.Entry):
             menu = tk.Menu(self.root, tearoff=0)
             menu.add_command(label="Add Date", command=lambda: self.create_calender(instance))
             menu.add_command(label="Add Current Date", command=lambda: self.add_current_date(instance))
+            menu.add_command(label="Add To Do List", command=self.add_to_do_list_view)
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
                 menu.grab_release()
 
-    def create_calender(self, instance: ttk.Entry) -> None:
-        """Creates the calendar in a top window."""
-        top_window = tk.Toplevel(self.root)
-        utils.set_window(top_window, 255, 230, "Calender")
+    def add_to_do_list_view(self):
+        top_window, entry = utils.create_pop_up("Name To Do List", self.root, self.data_handler.entry_limit,
+                                                parent=self.root, offset=(240, 90))
+        ttk.Button(top_window, text="Add To Do List", width=21, style="Accent.TButton",
+                   command=lambda e=None: self.add_definition(entry.get(), self.category_box.get(), TDL,
+                                                              window=top_window)).pack(side='top', padx=4, pady=4)
+
+        entry.bind("<Return>",
+                   lambda e=None: self.add_definition(entry.get(), self.category_box.get(), TDL, window=top_window))
         top_window.grab_set()
 
-        cal = Calendar(top_window)
+    def create_calender(self, instance: ttk.Entry) -> None:
+        """Creates the calendar in a top window."""
+        if not self.calender_window:
+            self.create_calender_view(instance)
+        else:
+            try:
+                self.calender_window.focus_set()
+            except tk.TclError:
+                self.create_calender_view(instance)
+
+    def create_calender_view(self, instance: ttk.Entry):
+        self.calender_window = tk.Toplevel(self.root)
+        utils.set_window(self.calender_window, 255, 230, "Calender", parent=self.root, offset=(190, 30))
+        self.calender_window.focus_set()
+
+        cal = Calendar(self.calender_window)
         cal.pack(expand=1, fill='both', padx=4, pady=4)
-        ttk.Button(top_window, text="Add Date", width=21, style="Accent.TButton",
-                   command=lambda: self.add_date(instance, cal.format_date(cal.selection()), top_window)).pack(pady=4,
-                                                                                                               padx=4)
+        ttk.Button(self.calender_window, text="Add Date", width=21, style="Accent.TButton",
+                   command=lambda: self.add_date(instance, cal.format_date(cal.selection()),
+                                                 self.calender_window)).pack(pady=4,
+                                                                             padx=4)
 
     @staticmethod
     def add_current_date(instance: ttk.Entry) -> None:
@@ -1113,10 +1283,17 @@ class Layout(tk.Frame):
                 for definition in temp_list:
                     try:
                         if definition != pinned[category]:
-                            self.list_box.insert(tk.END, definition)
+                            self.insert_data_to_listbox(category, definition)
                     except KeyError:
-                        self.list_box.insert(tk.END, definition)
+                        self.insert_data_to_listbox(category, definition)
             self.category_box.selection_clear()
+
+    def insert_data_to_listbox(self, category, definition):
+        # tab_type = self.data_handler.get_tab_type(category, definition)
+        # if tab_type == TEXT:
+        self.list_box.insert(tk.END, definition)
+        # elif tab_type == TDL:
+        #     self.list_box.insert(tk.END, f"@{definition}")
 
     def update_categories(self) -> None:
         """Updates the category selection box with given values from the database."""
@@ -1206,14 +1383,16 @@ class CustomListBox(DefaultListbox):
 
 
 class CustomNotebook(DefaultNotebook):
-    __slots__ = "root", "data_handler", "alert_system", "_active", "packed", "frames"
+    __slots__ = "root", "data_handler", "alert_system", "_active", "packed", "frames", "main_layout"
 
-    def __init__(self, root, alert_system, data_handler, *args, **kwargs):
+    def __init__(self, root, nb_frame, alert_system, data_handler, main_layout, *args, **kwargs):
         kwargs["style"] = "TNotebook"
-        DefaultNotebook.__init__(self, root, *args, **kwargs)
+        DefaultNotebook.__init__(self, nb_frame, *args, **kwargs)
         self.root = root
+        self.nb_frame = nb_frame
         self.data_handler = data_handler
         self.alert_system = alert_system
+        self.main_layout = main_layout
 
         self._active = None
         self.packed = False
@@ -1222,7 +1401,7 @@ class CustomNotebook(DefaultNotebook):
         self.bind("<ButtonRelease-1>", self.on_close_release)
         self.bind("<<NotebookTabClosed>>", lambda e=None: self.check_for_unpack())
 
-    def add_tab(self, category: str, definition: str) -> None:
+    def add_tab(self, category: str, definition: str, tab_type: str) -> None:
         """Calls the create_tab method to create elements and adds them to the notebook."""
         if not self.packed:
             self.pack_notebook()
@@ -1230,7 +1409,13 @@ class CustomNotebook(DefaultNotebook):
         if len(self.frames) < self.data_handler.tab_limit:
             # Creates a tab if the tab is not opened on the notebook
             if definition not in self.frames:
-                frame = self.create_tab(category, definition)
+                frame = None
+                # Checks what tab_type user is adding and create the tab area accordingly
+                if tab_type == TEXT:
+                    frame = TabArea(self, self.data_handler, category, definition, self.alert_system, self.main_layout)
+                elif tab_type == TDL:
+                    frame = TDLTabArea(self.root, self, self.data_handler, category, definition, self.alert_system,
+                                       self.main_layout)
                 self.frames.update({definition: frame})
                 self.add(frame, text=definition)
                 self.select(frame)
@@ -1245,10 +1430,6 @@ class CustomNotebook(DefaultNotebook):
                 self.set_tab(definition)
             else:
                 self.alert_system.show_alert(("Tab limit has been met.", "red"))
-
-    def create_tab(self, category: str, definition: str) -> tk.Frame:
-        """Creates the elements for the tab from the add tab method."""
-        return TabArea(self, self.data_handler, category, definition, self.alert_system)
 
     def close_tabs(self, close_list: list = None, save: bool = False, log_out: bool = False,
                    clearing: bool = False) -> None:
@@ -1302,7 +1483,7 @@ class CustomNotebook(DefaultNotebook):
     def pack_notebook(self) -> None:
         """Packs the frame the notebook is on and the notebook itself."""
         # Notebook frame packing
-        self.root.pack(expand=True, fill='both', pady=8, padx=8)
+        self.nb_frame.pack(expand=True, fill='both', pady=8, padx=8)
         self.pack(expand=True, fill='both', pady=2, padx=2)
         self.packed = True
 
@@ -1318,7 +1499,7 @@ class CustomNotebook(DefaultNotebook):
     def check_for_unpack(self) -> None:
         """Checks if any tabs are opened and unpacks the notebook."""
         if len(self.frames) == 0:
-            self.root.pack_forget()
+            self.nb_frame.pack_forget()
             self.pack_forget()
             self.packed = False
             self.frames = {}

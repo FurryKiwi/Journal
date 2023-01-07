@@ -69,7 +69,8 @@ class AutocompleteCombobox(ttk.Combobox):
 
 class CustomComboWithClassName(ttk.Combobox):
     """
-    Simple Combobox with added support for specifying a 'class_name'.
+    Simple Combobox with added support for specifying a 'class_name' and 'type class'. Used to generate comboboxes,
+    procedurally from a list of strings.
     """
     __slots__ = "class_name", "type_class"
 

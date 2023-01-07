@@ -55,17 +55,15 @@ class BackUpSystem:
 
     def start_auto_backup(self, user: str, time_frame: int, data_passes) -> None:
         data = self.data_handler.get_data()
-        # If not data, cancels auto backup
+        # If no data, cancels auto backup
         if data == {}:
-            if self.alert_system:
-                self.alert_system.show_alert(("Auto backup could not be set with no data.", "red"))
+            self.alert_system.show_alert(("Auto backup could not be set with no data.", "red"))
         else:
-            if self.alert_system:
-                self.alert_system.show_alert(("Auto backup has started.", "white"))
+            self.alert_system.show_alert(("Auto backup has started.", "white"))
             self.active = True
             user_directory = os.path.join(self._main_directory, user)
             utils.check_folder_and_create(user_directory)
-            self.save_path = os.path.join(user_directory, (self.get_current_time() + f"-auto-{user}.json"))
+            self.save_path = os.path.join(user_directory, (utils.get_current_time() + f"-auto-{user}.json"))
             self.data_passes = data_passes
             self.auto_backup(user, time_frame)
 
@@ -85,21 +83,16 @@ class BackUpSystem:
             # Tries to back up the user with the current data
             self.backup_user(user, data, self.data_passes, auto=True)
 
-    @staticmethod
-    def get_current_time():
-        return time.strftime("%Y-%m-%d, %H-%M-%S")
-
     def backup_user(self, user: str, data: dict, data_passes, auto: bool = False) -> None:
         """Back's up the current user with the data associated with user."""
         # If no data is being passed, then returns false
         if data == {}:
-            if self.alert_system:
-                self.alert_system.show_alert(("No data to backup.", "red"))
+            self.alert_system.show_alert(("No data to backup.", "red"))
             return
         if not auto:
             user_directory = os.path.join(self._main_directory, user)
             utils.check_folder_and_create(user_directory)
-            self.save_path = os.path.join(user_directory, (self.get_current_time() + f"-manual-{user}.json"))
+            self.save_path = os.path.join(user_directory, (utils.get_current_time() + f"-manual-{user}.json"))
 
         # If auto backup has started, but it's the first time, create a new backup
         if auto and not self.flag:
@@ -173,17 +166,24 @@ class BackUpSystem:
         self.data_passes = data_passes
         path = os.path.join(os.getcwd(), "Back Ups", self.data_handler.current_user)
         filepaths = os.listdir(path)
+        # Reversing the filepaths
+        start = len(filepaths) - 1
+        filepaths = [filepaths[i] for i in range(start, -1, -1)]
         if self.top_window is None:
             self.top_window = tk.Toplevel(self.root)
-            utils.set_window(self.top_window, 700, 500, "Restore User", True, (0, 50))
+            utils.set_window(self.top_window, 700, 500, "Restore User", parent=self.root, resize=True,
+                             offset=(-280, -150))
             self.create_restore_page(filepaths, top_level)
+            self.top_window.focus_set()
         else:
             try:
                 self.top_window.focus_set()
             except tk.TclError:
                 self.top_window = tk.Toplevel(self.root)
-                utils.set_window(self.top_window, 700, 500, "Restore User", True, (0,  50))
+                utils.set_window(self.top_window, 700, 500, "Restore User", parent=self.root, resize=True,
+                                 offset=(-280, -150))
                 self.create_restore_page(filepaths, top_level)
+                self.top_window.focus_set()
 
     def cancel_loading(self):
         self.top_window.destroy()

@@ -19,6 +19,10 @@ from CustomTkWidgets.custom_combobox import CustomComboWithClassName
 from CustomTkWidgets.custom_color_picker import ColorPicker
 
 
+def get_current_time():
+    return time.strftime("%Y-%m-%d, %H-%M-%S")
+
+
 def check_folder_exists(filepath: str) -> bool:
     """Checks if a user folder already exists."""
     if os.path.isdir(filepath):
@@ -84,10 +88,11 @@ def create_json(filename, data: dict) -> dict:
         return data.copy()
 
 
-def create_pop_up(title: str, root: tk.Tk, entry_limit: int) -> (tk.Toplevel, tk.Entry):
+def create_pop_up(title: str, root: tk.Tk, entry_limit: int, parent=None, offset: tuple[int, int] = None) -> (
+        tk.Toplevel, tk.Entry):
     """Creates a top level window for renaming definitions/categories and adding new categories."""
     top_window = tk.Toplevel(root)
-    set_window(top_window, 200, 100, title)
+    set_window(top_window, 200, 100, title, parent=parent, offset=offset)
 
     ttk.Label(top_window, text=f"{title}: ", font=DEFAULT_FONT_BOLD, style="H.TLabel").pack()
 
@@ -134,11 +139,17 @@ def get_current_date() -> str:
     return cur_date
 
 
-def set_window(root, w, h, title, resize: bool = False, offset: tuple[int, int] = None) -> None:
-    ws = root.winfo_screenwidth()
-    hs = root.winfo_screenheight()
-    x = (ws / 2) - (w / 2)
-    y = (hs / 2) - (h / 2)
+def set_window(root, w, h, title, parent=None, resize: bool = False, offset: tuple[int, int] = None) -> None:
+    if parent:
+        parent_x = parent.winfo_rootx()
+        parent_y = parent.winfo_rooty()
+        x = (w / 2) + parent_x
+        y = (h / 2) + parent_y
+    else:
+        ws = root.winfo_screenwidth()
+        hs = root.winfo_screenheight()
+        x = (ws / 2) - (w / 2)
+        y = (hs / 2) - (h / 2)
     root.title(title)
     if offset:
         root.geometry('%dx%d+%d+%d' % (w, h, x + offset[0], y + offset[1]))
@@ -256,6 +267,7 @@ if __name__ == '__main__':
     from CustomTkWidgets.custom_scrollable_frames import VerticalScrolledFrame
     import cProfile
     import pstats
+
     # import itertools
     #
     root = tk.Tk()

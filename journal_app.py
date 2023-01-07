@@ -37,7 +37,7 @@ class Journal:
         self.root = root
         self.root.tk.call("source", self.theme_path)
         self.root.tk.call("set_theme", "dark")
-        self.root.iconbitmap(default=ICON_IMG_ICO)
+        self.root.wm_iconbitmap(default=ICON_IMG_ICO)
         self.root.iconify()
         self.root.deiconify()
 
@@ -281,6 +281,12 @@ class Journal:
         self.search_engine = SearchEngine(self.main_layout, self.data_handler)
 
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+# TODO: Look at building a navigation bar on the side as a separate widget that opens and closes/ packs and unpacks
+#  to the screen.
+# TODO: Build a custom calendar to add events to and track this in the square or by clicking on the day.
+# TODO: Add an indicator for which definition is a TODOLIST type
+# TODO: Update the function descriptions across pre much all my files
 
 
 if __name__ == '__main__':

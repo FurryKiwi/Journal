@@ -9,6 +9,14 @@ import Scripts.utils as utils
 from Scripts.settings import *
 from Scripts.backup_system import BackUpSystem
 
+USER_DATA = {"entry_limit": 20,
+             "tdl_limit": 80,
+             "tab_limit": 4,
+             "last_category": "",
+             "default_font": ["Arial", 12],
+             "pinned": {}
+             }
+
 
 def get_timestamp() -> str:
     """Returns the current date."""
@@ -30,12 +38,7 @@ class LoginHandler:
     _config_data = {"current": utils.encode_string("", _config_passes),
                     "signed_in": utils.encode_string(0, _config_passes)
                     }
-    _user_data = {"entry_limit": 20,
-                  "tab_limit": 4,
-                  "last_category": "",
-                  "default_font": ["Arial", 12],
-                  "pinned": {}
-                  }
+
     __slots__ = "data_handler", "last_signed_in", "signed_in_btn", "entry_limit", "_save_path_config", \
                 "_save_path_config_folder", "_users_folder_path"
 
@@ -102,7 +105,7 @@ class LoginHandler:
             data = utils.encode_string({new_user: new_pw, "Data": data_passes}, self._pw_passes)
 
             utils.dump_json(secret, data)
-            utils.dump_json(save_path_config, self._user_data)
+            utils.dump_json(save_path_config, USER_DATA)
             return True
         else:
             return False
@@ -227,19 +230,14 @@ class DataHandler:
     _theme_config = "theme.json"
     _path_to_config_directory = os.path.join(_current_directory, _directory, "Config")
     _path_to_theme_config = os.path.join(_current_directory, _directory, "Config", _theme_config)
-    _time_frames = {"30": 30000,
-                    "60": 60000,
-                    "120": 120000}
+    time_frames = {"30": 30000,
+                   "60": 60000,
+                   "120": 120000}
     _default_theme_data = {"theme_path": AZURE_THEME_PATH,
                            "theme": AZURE_THEME}
-    _user_data = {"entry_limit": 20,
-                  "tab_limit": 4,
-                  "last_category": "",
-                  "default_font": ["Arial", 12],
-                  "pinned": {}}
     __slots__ = "backup_sys", "data", "config_data", "current_user", "signed_in", "entry_limit", "tab_limit", \
                 "last_category", "default_font", "pinned", "theme", "_data_passes", "_data_save_path", \
-                "_config_save_path"
+                "_config_save_path", "tdl_limit"
 
     def __init__(self):
         self.backup_sys = None
@@ -250,6 +248,7 @@ class DataHandler:
         self.current_user = None
         self.signed_in = None
         self.entry_limit = None
+        self.tdl_limit = None
         self.tab_limit = None
         self.last_category = None
         self.default_font = None
@@ -275,11 +274,12 @@ class DataHandler:
         """Grabs the saved data from the json file and set's attributes from it."""
         # CWD/Data/Users/Username/config_pref.json
         self._config_save_path = os.path.join(self._users_folder_path, user, self._users_config)
-        config_data = utils.read_json(self._config_save_path, self._user_data)
+        config_data = utils.read_json(self._config_save_path, USER_DATA)
 
         self.current_user = user
         self.signed_in = signed_in
         self.entry_limit = config_data['entry_limit']
+        self.tdl_limit = config_data['tdl_limit']
         self.tab_limit = config_data['tab_limit']
         self.last_category = config_data['last_category']
         self.default_font = config_data['default_font']
@@ -304,6 +304,7 @@ class DataHandler:
     def update_json(self) -> None:
         """Updates the data in the raw_data for the current user."""
         self.config_data['entry_limit'] = self.entry_limit
+        self.config_data['tdl_limit'] = self.tdl_limit
         self.config_data['tab_limit'] = self.tab_limit
         self.config_data['last_category'] = self.last_category
         self.config_data['default_font'] = self.default_font
@@ -316,12 +317,13 @@ class DataHandler:
         utils.dump_json(self._data_save_path, data)
 
     def reset_default_config(self):
-        config_data = self._user_data
+        config_data = USER_DATA
         self.entry_limit = config_data['entry_limit']
+        self.tdl_limit = config_data['tdl_limit']
         self.tab_limit = config_data['tab_limit']
         self.last_category = config_data['last_category']
         self.default_font = config_data['default_font']
-        utils.dump_json(self._config_save_path, self._user_data)
+        utils.dump_json(self._config_save_path, USER_DATA)
 
     # Import/Export Functions
     def import_data(self, data: dict, orig_data: dict, backup: bool):
@@ -351,14 +353,15 @@ class DataHandler:
                 if category in export_data:
                     export_data[category].update({i: [self.get_text_by_definition(category, i),
                                                       self.get_timestamp_by_definition(category, i),
-                                                      self.get_tab_font(category, i)]})
+                                                      self.get_tab_font(category, i),
+                                                      self.get_tab_type(category, i)]})
                 else:
                     export_data.update({category: {
                         i: [self.get_text_by_definition(category, i), self.get_timestamp_by_definition(category, i),
-                            self.get_tab_font(category, i)]}})
+                            self.get_tab_font(category, i), self.get_tab_type(category, i)]}})
         export_folder = os.path.join(self._export_folder_path, self.current_user)
         utils.check_folder_and_create(export_folder)
-        file_name = "database_exported_" + self.current_user.lower() + ".json"
+        file_name = "database_exported_" + self.current_user.lower() + "_" + utils.get_current_time() + ".json"
         export_filepath = os.path.join(export_folder, file_name)
         try:
             utils.dump_json(export_filepath, export_data)
@@ -379,11 +382,6 @@ class DataHandler:
         """Gets the backed up data from the BackupSystem for the current user.
         Sets the grabbed data and returns boolean."""
         self.backup_sys.create_restore_view(self._data_passes, top_level)
-        # if temp_data is None:
-        #     return False
-        # if temp_data != {}:
-        #     self.data = temp_data
-        #     return True
 
     def restore_data(self, data):
         self.data = data
@@ -394,7 +392,7 @@ class DataHandler:
 
     def start_auto_backup(self, time_frame: str) -> None:
         """Calls the auto backup function."""
-        milliseconds = self._time_frames[time_frame]
+        milliseconds = self.time_frames[time_frame]
         self.backup_sys.start_auto_backup(self.current_user, milliseconds, self._data_passes)
 
     def get_data(self) -> dict:
@@ -427,7 +425,7 @@ class DataHandler:
         except KeyError:
             return False
 
-    def add_definition(self, entry: str, category: str, definition: str) -> bool:
+    def add_definition(self, entry: str, category: str, definition: str, tab_type: str = TEXT) -> bool:
         """Adds/Renames a definition in the data for the current user."""
         if entry == '':
             return False
@@ -451,7 +449,8 @@ class DataHandler:
             else:
                 # Add new definition
                 items = list(self.data[category].items())
-                items.insert(0, (entry, ["", get_timestamp(), self.get_default_font()]))
+                # Text, timestamp, font, tab_type
+                items.insert(0, (entry, ["", get_timestamp(), self.get_default_font(), tab_type]))
                 self.data[category] = dict(items)
                 return True
         except KeyError:
@@ -472,14 +471,23 @@ class DataHandler:
     def get_default_font(self):
         return self.default_font
 
-    def paste_definition(self, category: str, definition: str, text: str, time_stamp: str, font: tuple) -> bool:
-        if definition == '' or definition is None:
-            return False
-        # Check if adding a definition that exists
-        if definition in self.data[category]:
+    def paste_definition(self, category: str, definition_list: list) -> bool:
+        hits = 0
+        for dic in definition_list:
+            for definition, values in dic.items():
+                if definition == '' or definition is None:
+                    hits += 1
+                if definition not in self.data[category]:
+                    text = values[0]
+                    time_stamp = values[1]
+                    font = values[2]
+                    tab_type = values[3]
+                    self.data[category].update({definition: [text, time_stamp, font, tab_type]})
+                else:
+                    hits += 1
+        if hits == len(definition_list):
             return False
         else:
-            self.data[category].update({definition: [text, time_stamp, font]})
             return True
 
     def add_text(self, category: str, definition: str, text: str) -> None:
@@ -538,6 +546,12 @@ class DataHandler:
 
     def get_tab_font(self, category, definition) -> None:
         return self.data[category][definition][2]
+
+    def get_tab_type(self, category, definition):
+        try:
+            return self.data[category][definition][3]
+        except IndexError:
+            return TEXT
 
     def set_font(self, font, size) -> None:
         self.default_font = (font, size)

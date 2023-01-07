@@ -323,4 +323,4 @@ class LoginPage(ttk.Notebook):
         self.root.minsize(330, 325)
         self.password_login.focus_force()
         self.event_handling()
-        self.root.update_idletasks()
+        # self.root.update_idletasks()

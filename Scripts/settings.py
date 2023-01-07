@@ -48,3 +48,5 @@ DEFAULT_FONT = ("Arial", 12)  # Everything else font
 DEFAULT_FONT_BOLD = ("Arial", 12, "bold")  # Header  font
 DEFAULT_FONT_UNDERLINE_BOLD = ("Arial", 14, "underline", "bold")  # Title font
 COLORS = ['custom', 'red', 'blue', 'green', 'orange', 'white', 'grey', 'black', 'purple', 'brown', 'yellow', 'violet']
+TEXT = "text"
+TDL = "list"

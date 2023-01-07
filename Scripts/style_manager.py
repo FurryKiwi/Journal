@@ -14,10 +14,10 @@ import Scripts.utils as utils
 
 class StyleManager:
     all_styles = ['Accent.TButton', 'R.Treeview', 'TNotebook.Tab', 'R.TCombobox', 'H.TLabel', 'R.TLabel', 'S.TLabel',
-                  'SF.TLabel', 'R.TEntry', 'Help_Text', 'Listbox', 'Menu', 'Pin_Color']
+                  'SF.TLabel', 'R.TEntry', 'Help_Text', 'Listbox', 'Menu', 'Pin_Color', 'TCheckbutton']
 
     _style_options = ['Accent.TButton', 'R.Treeview', 'TNotebook.Tab', 'R.TCombobox', 'H.TLabel', 'R.TLabel',
-                      'S.TLabel', 'SF.TLabel', 'R.TEntry']
+                      'S.TLabel', 'SF.TLabel', 'R.TEntry', 'TCheckbutton']
 
     _default_style = {
         "Accent.TButton": {"foreground": "white"},
@@ -32,7 +32,8 @@ class StyleManager:
         "Help_Text": {"foreground": "white"},
         "Listbox": {"foreground": "white"},
         "Menu": {"foreground": "white"},
-        "Pin_Color": {"foreground": "yellow"}
+        "Pin_Color": {"foreground": "yellow"},
+        "TCheckbutton": {"font": "8", "foreground": "white"}
     }
     __slots__ = "root", "journal", "user", "theme", "style", "_path_to_directory", "_path_to_config", "data"
 
